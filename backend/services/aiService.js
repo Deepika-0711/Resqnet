@@ -1,121 +1,48 @@
+/**
+ * ARCHITECTURAL BOUNDARY:
+ * AI Orchestration Service for RESQNET backend.
+ *
+ * Serves as the central AI Orchestration layer in Node.js.
+ * Pluggable Provider Architecture:
+ * - Local Deterministic Engine (default, powered by priorityEngine.js)
+ * - Remote FastAPI AI Service (optional microservice)
+ * - Future extension slots for Breeth AI (memory/context), ElevenLabs (voice), and Gemini LLM.
+ */
+
 const axios = require('axios');
-const { calculatePriority } = require('./priorityEngine');
+const { evaluateIncident } = require('./priorityEngine');
+const { searchIncidentMemory, storeIncidentMemory } = require('./breethService');
 
 const AI_SERVICE_URL = process.env.AI_SERVICE_URL || 'http://localhost:8000';
 
 /**
- * Deterministic rule-based fallback NLP extraction
+ * Standardized AI Analysis Provider Interface
+ * Accepts string input or structured object input.
  */
-function deterministicAnalyze(rawText) {
-  const text = (rawText || '').toLowerCase();
+async function analyzeIncident(input) {
+  let text = '';
+  let locationHint = null;
 
-  // Extract People Count
-  let peopleCount = 1;
-  const numberWords = { 'one': 1, 'two': 2, 'three': 3, 'four': 4, 'five': 5, 'six': 6 };
-  const peopleMatch = text.match(/(\d+|one|two|three|four|five|six)\s+(people|persons|passengers|victims|injured|riders)/i);
-  if (peopleMatch) {
-    const rawVal = peopleMatch[1].toLowerCase();
-    peopleCount = numberWords[rawVal] || parseInt(rawVal, 10) || 1;
-  } else if (text.includes('three') || text.includes('3')) {
-    peopleCount = 3;
-  } else if (text.includes('multiple people') || text.includes('several people')) {
-    peopleCount = 3;
+  if (typeof input === 'string') {
+    text = input;
+  } else if (input && typeof input === 'object') {
+    text = input.text || input.rawText || '';
+    locationHint = input.locationHint || input.location || null;
   }
 
-  // Extract Location
-  let location = 'Mysore Road, Bengaluru';
-  if (text.includes('mysore road')) {
-    location = 'Mysore Road, Bengaluru';
-  } else if (text.includes('silk board')) {
-    location = 'Silk Board Junction, Bengaluru';
-  } else if (text.includes('hebbal')) {
-    location = 'Hebbal Flyover, Bengaluru';
-  } else if (text.includes('outer ring road') || text.includes('marathahalli')) {
-    location = 'Outer Ring Road, Marathahalli, Bengaluru';
-  } else if (text.includes('electronic city')) {
-    location = 'Electronic City Elevated Toll, Bengaluru';
-  } else if (text.includes('koramangala')) {
-    location = 'Koramangala 80 Feet Road, Bengaluru';
-  } else if (text.includes('mg road')) {
-    location = 'MG Road, Trinity Circle, Bengaluru';
+  if (!text || (typeof text === 'string' && !text.trim())) {
+    text = 'Road accident reported';
   }
 
-  // Extract Injury Indicators
-  const injuryIndicators = [];
-  if (text.includes('injur') || text.includes('bleeding') || text.includes('hurt') || text.includes('unconscious')) {
-    if (peopleCount > 1) {
-      injuryIndicators.push('Multiple reported injuries');
-    } else {
-      injuryIndicators.push('Reported trauma / injury');
-    }
-    if (text.includes('unconscious') || text.includes('critical')) {
-      injuryIndicators.push('Severe trauma indicators');
-    }
-  }
+  let baseResult = null;
 
-  // Extract Road Obstruction
-  const roadObstruction = (
-    text.includes('block') ||
-    text.includes('obstruction') ||
-    text.includes('jam') ||
-    text.includes('overturned') ||
-    text.includes('traffic halted') ||
-    text.includes('blocking the road')
-  );
-
-  // Extract Fire / Smoke
-  const fireSmoke = (
-    text.includes('fire') ||
-    text.includes('smoke') ||
-    text.includes('burning') ||
-    text.includes('explosion') ||
-    text.includes('flames')
-  );
-
-  // Extract Access Difficulty
-  const accessDifficulty = (
-    text.includes('trap') ||
-    text.includes('pinned') ||
-    text.includes('crushed') ||
-    text.includes('extricat')
-  );
-
-  // Calculate priority score & factors
-  const priorityResult = calculatePriority({
-    peopleCount,
-    injuryIndicators,
-    roadObstruction,
-    fireSmoke,
-    accessDifficulty
-  });
-
-  return {
-    incidentType: 'Road Accident',
-    location,
-    peopleCount,
-    injuryIndicators: injuryIndicators.length > 0 ? injuryIndicators : ['None confirmed by witness'],
-    roadObstruction,
-    fireSmoke,
-    accessDifficulty,
-    priority: priorityResult.level,
-    priorityScore: priorityResult.score,
-    priorityFactors: priorityResult.factors,
-    reasoning: priorityResult.reasoning,
-    source: 'RULE_BASED_ENGINE',
-    disclaimer: priorityResult.disclaimer
-  };
-}
-
-/**
- * AI analysis service with graceful Python FastAPI integration & fallback
- */
-async function analyzeIncidentText(rawText) {
+  // Provider Strategy Evaluation
+  // 1. Try Remote Python FastAPI service if reachable
   try {
-    // Attempt request to Python FastAPI AI service
     const response = await axios.post(
       `${AI_SERVICE_URL}/analyze`,
-      { text: rawText },
-      { timeout: 1800 }
+      { text, location_hint: locationHint },
+      { timeout: 1500 }
     );
 
     if (response.data && response.data.priority) {
@@ -127,48 +54,104 @@ async function analyzeIncidentText(rawText) {
       const fs = Boolean(d.fire_smoke ?? d.fireSmoke);
       const ad = Boolean(d.access_difficulty ?? d.accessDifficulty);
 
-      return {
+      baseResult = {
         incidentType: d.incident_type || d.incidentType || 'Road Accident',
-        incident_type: d.incident_type || d.incidentType || 'Road Accident',
-        location: d.location || 'Mysore Road, Bengaluru',
+        location: d.location || locationHint || 'Mysore Road, Bengaluru',
         peopleCount: pc,
-        people_count: pc,
         injuryIndicators: ii,
-        injury_indicators: ii,
         roadObstruction: ro,
-        road_obstruction: ro,
         fireSmoke: fs,
-        fire_smoke: fs,
         accessDifficulty: ad,
-        access_difficulty: ad,
         priority: d.priority || 'HIGH',
         priorityScore: ps,
-        priority_score: ps,
         priorityFactors: d.priority_factors || d.priorityFactors || [],
         reasoning: d.reasoning || [],
-        disclaimer: d.disclaimer || 'AI-assisted estimation. Non-medical triage only.',
-        source: 'FASTAPI_AI_SERVICE'
+        disclaimer: d.disclaimer || 'Prototype emergency priority assessment — Decision support only, not a medical diagnosis.',
+        source: 'FASTAPI_AI_MICROSERVICE',
+        provider: 'PYTHON_FASTAPI'
       };
     }
   } catch (err) {
-    // Graceful fallback to deterministic rule-based NLP engine
-    console.log(`[AI Service] FastAPI service not reachable (${err.message}). Using deterministic fallback engine.`);
+    // Gracefully fallback to local deterministic priority engine
   }
 
-  const fb = deterministicAnalyze(rawText);
+  // 2. Default Local Deterministic Priority Engine
+  if (!baseResult) {
+    const localResult = evaluateIncident(text, locationHint);
+    baseResult = {
+      ...localResult,
+      source: 'DETERMINISTIC_PRIORITY_ENGINE',
+      provider: 'NODE_LOCAL_ENGINE'
+    };
+  }
+
+  // 3. Retrieve Breeth AI Incident Memory Context (Does NOT alter deterministic score)
+  let corridorContext = null;
+  try {
+    corridorContext = await searchIncidentMemory(baseResult.location);
+  } catch (err) {
+    console.warn('[AI Orchestrator] Breeth context retrieval warning:', err.message);
+  }
+
+  return normalizeIntelligenceResult({
+    ...baseResult,
+    corridorContext
+  });
+}
+
+/**
+ * Ensures normalized dual key availability (camelCase and snake_case)
+ * to prevent breaking legacy controllers or UI readers.
+ */
+function normalizeIntelligenceResult(data) {
+  const pc = Number(data.peopleCount ?? data.people_count ?? 1);
+  const ps = Number(data.priorityScore ?? data.priority_score ?? 4);
+  const ii = data.injuryIndicators || data.injury_indicators || [];
+  const ro = Boolean(data.roadObstruction ?? data.road_obstruction);
+  const fs = Boolean(data.fireSmoke ?? data.fire_smoke);
+  const ad = Boolean(data.accessDifficulty ?? data.access_difficulty);
+  const it = data.incidentType || data.incident_type || 'Road Accident';
+
   return {
-    ...fb,
-    incident_type: fb.incidentType,
-    people_count: fb.peopleCount,
-    injury_indicators: fb.injuryIndicators,
-    road_obstruction: fb.roadObstruction,
-    fire_smoke: fb.fireSmoke,
-    access_difficulty: fb.accessDifficulty,
-    priority_score: fb.priorityScore
+    incidentType: it,
+    incident_type: it,
+    location: data.location || 'Mysore Road, Bengaluru',
+    peopleCount: pc,
+    people_count: pc,
+    injuryIndicators: ii,
+    injury_indicators: ii,
+    roadObstruction: ro,
+    road_obstruction: ro,
+    fireSmoke: fs,
+    fire_smoke: fs,
+    accessDifficulty: ad,
+    access_difficulty: ad,
+    priority: data.priority || 'HIGH',
+    priorityScore: ps,
+    priority_score: ps,
+    priorityFactors: data.priorityFactors || data.priority_factors || [],
+    reasoning: data.reasoning || [],
+    corridorContext: data.corridorContext || null,
+    historicalContext: data.corridorContext?.summary || null,
+    disclaimer: data.disclaimer || 'Prototype emergency priority assessment — Decision support only, not a medical diagnosis.',
+    source: data.source || 'DETERMINISTIC_ENGINE',
+    provider: data.provider || 'NODE_ORCHESTRATOR'
   };
 }
 
+// Backwards-compatible alias exports
+async function analyzeIncidentText(rawText) {
+  return analyzeIncident(rawText);
+}
+
+function deterministicAnalyze(rawText) {
+  return evaluateIncident(rawText);
+}
+
 module.exports = {
+  analyzeIncident,
   analyzeIncidentText,
-  deterministicAnalyze
+  deterministicAnalyze,
+  normalizeIntelligenceResult
 };
+

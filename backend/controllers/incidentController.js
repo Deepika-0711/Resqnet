@@ -3,6 +3,8 @@ const { analyzeIncidentText } = require('../services/aiService');
 const { syncHandoff, getHandoff } = require('../services/handoffService');
 const { logEvent } = require('../utils/logger');
 const { emitEvent } = require('../services/socketService');
+const { transcribeAudio: elevenLabsTranscribe } = require('../services/elevenLabsService');
+const { storeIncidentMemory } = require('../services/breethService');
 
 // Create emergency incident
 async function createIncident(req, res, next) {
@@ -19,7 +21,7 @@ async function createIncident(req, res, next) {
     const incidentId = `RSQ-2026-${String(seq).padStart(3, '0')}`;
     const now = new Date().toISOString();
 
-    // AI Analysis
+    // AI Analysis (Node Priority Engine + Breeth Memory Context)
     const aiResult = await analyzeIncidentText(text);
 
     const resolvedLocation = location || aiResult.location || 'Mysore Road, Bengaluru';
@@ -64,12 +66,28 @@ async function createIncident(req, res, next) {
 
     // Initial timeline logs
     logEvent(incidentId, 'REPORTED', `Emergency reported: ${text}`, 'WITNESS_DISPATCH');
+
+    if (req.body.isVoiceReport) {
+      logEvent(incidentId, 'VOICE_REPORT_TRANSCRIBED', 'VOICE REPORT TRANSCRIBED — Citizen voice intake processed via ElevenLabs.', 'ELEVENLABS_STT');
+    }
+
     logEvent(incidentId, 'AI_ASSESSMENT', `AI Priority assessed as ${aiResult.priority} (Score: ${aiResult.priorityScore}/10). Factors: ${aiResult.reasoning.join(', ')}`, 'AI_ANALYZER');
+
+    if (aiResult.corridorContext) {
+      logEvent(incidentId, 'BREETH_MEMORY_FOUND', `CORRIDOR MEMORY FOUND: ${aiResult.corridorContext.summary || 'Historical incident context attached.'}`, 'BREETH_AI');
+    }
 
     // Create live handoff record
     const handoff = syncHandoff(incidentId);
 
     const incident = db.get('SELECT * FROM incidents WHERE id = ?', [incidentId]);
+
+    // Store in Breeth AI Memory Layer asynchronously
+    try {
+      await storeIncidentMemory(incident);
+    } catch (memErr) {
+      console.warn('[Incident Controller] Breeth memory store warning:', memErr.message);
+    }
 
     // Broadcast real-time events
     emitEvent('incidentCreated', { incidentId, incident });
@@ -86,6 +104,33 @@ async function createIncident(req, res, next) {
       },
       aiResult,
       handoff
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// Transcribe citizen voice recording via ElevenLabs
+async function transcribeAudio(req, res, next) {
+  try {
+    const { audio, audioBase64, mimeType } = req.body;
+    const payloadAudio = audioBase64 || audio;
+
+    if (!payloadAudio) {
+      return res.status(400).json({
+        success: false,
+        error: 'Audio payload is required. Please provide a base64 encoded audio string.'
+      });
+    }
+
+    const result = await elevenLabsTranscribe({
+      audioBase64: payloadAudio,
+      mimeType: mimeType || 'audio/webm'
+    });
+
+    return res.json({
+      success: true,
+      data: result
     });
   } catch (err) {
     next(err);
@@ -254,6 +299,7 @@ function getIncidentTimeline(req, res, next) {
 
 module.exports = {
   createIncident,
+  transcribeAudio,
   getIncidents,
   getIncidentById,
   analyzeIncident,

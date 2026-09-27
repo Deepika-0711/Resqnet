@@ -22,6 +22,7 @@ apiClient.interceptors.response.use(
 export const api = {
   // Incidents
   createIncident: (payload) => apiClient.post('/incidents', payload),
+  transcribeAudio: (payload) => apiClient.post('/incidents/transcribe', payload),
   getIncidents: () => apiClient.get('/incidents'),
   getIncidentById: (id) => apiClient.get(`/incidents/${id}`),
   analyzeIncident: (id, payload) => apiClient.post(`/incidents/${id}/analyze`, payload),

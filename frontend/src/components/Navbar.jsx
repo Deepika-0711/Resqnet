@@ -34,15 +34,10 @@ export default function Navbar() {
   }, []);
 
   const navItems = [
-    { to: '/', label: 'Overview', icon: Activity },
     { to: '/report', label: 'Report Emergency', icon: AlertCircle, highlight: true },
-    { to: '/analysis', label: 'AI Analysis', icon: ShieldAlert },
-    { to: '/ambulances', label: 'Ambulances', icon: Truck },
-    { to: '/hospitals', label: 'Hospitals', icon: Building2 },
-    { to: '/map', label: 'Routes & Map', icon: Navigation },
-    { to: '/handoff/RSQ-2026-001', label: 'RESQ Handoff', icon: FileText, hero: true },
     { to: '/command-center', label: 'Command Center', icon: Radio },
-    { to: '/readiness', label: 'Predictive Readiness', icon: BarChart3 }
+    { to: '/handoff/RSQ-2026-001', label: 'Live Handoff', icon: FileText, hero: true },
+    { to: '/readiness', label: 'Readiness', icon: BarChart3 }
   ];
 
   return (
@@ -132,7 +127,7 @@ export default function Navbar() {
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-500 hover:to-orange-500 text-white text-xs font-semibold shadow-md shadow-red-500/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
             >
               <Play className="w-3 h-3 fill-current" />
-              <span>LIVE DEMO</span>
+              <span>LIVE SCENARIO</span>
             </Link>
           </div>
 

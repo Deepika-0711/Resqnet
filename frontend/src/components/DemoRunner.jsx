@@ -19,7 +19,7 @@ const STEPS = [
 export default function DemoRunner({ onStepExecuted }) {
   const [currentStep, setCurrentStep] = useState(1);
   const [isRunning, setIsRunning] = useState(false);
-  const [statusMessage, setStatusMessage] = useState('Ready for automated backend demo run.');
+  const [statusMessage, setStatusMessage] = useState('System active & ready for response scenario.');
   const [loading, setLoading] = useState(false);
 
   // Auto-runner interval
@@ -52,7 +52,7 @@ export default function DemoRunner({ onStepExecuted }) {
     try {
       const res = await api.executeDemoStep(stepNum);
       setCurrentStep(stepNum);
-      setStatusMessage(res.message || `Step ${stepNum} executed on backend.`);
+      setStatusMessage(res.message || `Sequence ${stepNum} synchronized on backend.`);
       if (onStepExecuted) onStepExecuted(res);
       if (stepNum === 10) {
         try {
@@ -65,7 +65,7 @@ export default function DemoRunner({ onStepExecuted }) {
       }
     } catch (err) {
       console.error('Demo step error:', err.message);
-      setStatusMessage(`Error executing step ${stepNum}: ${err.message}`);
+      setStatusMessage(`Sequence error ${stepNum}: ${err.message}`);
       setIsRunning(false);
     } finally {
       setLoading(false);
@@ -78,7 +78,7 @@ export default function DemoRunner({ onStepExecuted }) {
     try {
       await api.resetDemo();
       setCurrentStep(1);
-      setStatusMessage('Demo reset: Initial reported state restored.');
+      setStatusMessage('Workflow reset: Initial reported emergency state restored.');
       if (onStepExecuted) onStepExecuted({ reset: true });
     } catch (err) {
       console.error('Reset error:', err.message);
@@ -103,10 +103,10 @@ export default function DemoRunner({ onStepExecuted }) {
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-xs font-mono font-bold tracking-wider text-cyan-300">
-                  REAL-TIME HACKATHON DEMO ENGINE
+                  LIVE RESPONSE WORKFLOW CONTROLLER
                 </span>
                 <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-cyan-950 border border-cyan-700 text-cyan-400">
-                  Step {currentStep}/10
+                  Sequence {currentStep}/10
                 </span>
               </div>
               <p className="text-xs text-slate-300 font-medium truncate max-w-md">
@@ -138,7 +138,7 @@ export default function DemoRunner({ onStepExecuted }) {
                 className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-500 hover:to-orange-500 text-white text-xs font-bold font-mono shadow-md shadow-red-600/30 transition-all hover:scale-105 active:scale-95"
               >
                 <Play className="w-3.5 h-3.5 fill-current" />
-                <span>{currentStep >= 10 ? 'RESTART DEMO' : 'START LIVE DEMO'}</span>
+                <span>{currentStep >= 10 ? 'RESTART SCENARIO' : 'RUN RESPONSE SCENARIO'}</span>
               </button>
             )}
 
@@ -160,7 +160,7 @@ export default function DemoRunner({ onStepExecuted }) {
               onClick={handleReset}
               disabled={loading}
               className="p-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-white border border-slate-700 transition-colors"
-              title="Reset Demo Incident"
+              title="Reset Operational Scenario"
             >
               <RotateCcw className="w-3.5 h-3.5" />
             </button>

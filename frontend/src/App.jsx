@@ -44,10 +44,10 @@ export default function App() {
         <footer className="border-t border-resq-border/60 bg-resq-panel/80 py-6 text-center text-xs text-slate-500 font-mono">
           <div className="max-w-7xl mx-auto px-4 space-y-2">
             <p className="text-slate-400 font-semibold">
-              RESQNET • Track 2: Bharat Infra — AI Road Accident Response &amp; Coordination Platform
+              RESQNET • Bharat Emergency Response &amp; Coordination Platform
             </p>
             <p className="text-[11px] text-slate-500 max-w-2xl mx-auto leading-relaxed">
-              RESQNET is a hackathon prototype designed for emergency coordination and decision support. AI-generated assessments do not constitute medical diagnosis and do not replace trained emergency professionals, healthcare providers, or official emergency services.
+              RESQNET is an emergency coordination and decision support platform. Operational priority assessments provide decision support and do not replace trained emergency medical professionals, triage physicians, or official emergency services.
             </p>
           </div>
         </footer>

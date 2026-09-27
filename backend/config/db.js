@@ -1,3 +1,11 @@
+/**
+ * ARCHITECTURAL BOUNDARY:
+ * Database Initialization & Persistence Engine.
+ *
+ * Primary SQLite persistence layer using Node 22 native `node:sqlite`.
+ * This module is the SINGLE SOURCE OF TRUTH for database table schemas and DDL.
+ * (Note: database/schema.sql and database/seed.sql are legacy static SQL files kept for reference only).
+ */
 const { DatabaseSync } = require('node:sqlite');
 const path = require('path');
 const fs = require('fs');

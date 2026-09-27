@@ -10,6 +10,7 @@ const demoCtrl = require('../controllers/demoController');
 
 // Incident Routes
 router.post('/incidents', incidentCtrl.createIncident);
+router.post('/incidents/transcribe', incidentCtrl.transcribeAudio);
 router.get('/incidents', incidentCtrl.getIncidents);
 router.get('/incidents/:id', incidentCtrl.getIncidentById);
 router.post('/incidents/:id/analyze', incidentCtrl.analyzeIncident);

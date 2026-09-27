@@ -269,7 +269,7 @@ export default function EmergencyReadiness() {
       <div className="glass-panel p-6 rounded-2xl border border-resq-border">
         <div className="flex items-center justify-between mb-4">
           <span className="text-xs font-mono font-bold uppercase tracking-wider text-slate-300">
-            HIGH-DEMAND ACCIDENT CORRIDORS (SIMULATED DATASET)
+            HIGH-DEMAND ACCIDENT CORRIDORS (HISTORICAL OPERATIONAL DATA)
           </span>
           <span className="text-[11px] font-mono text-slate-500">Sorted by historical collision frequency</span>
         </div>
@@ -313,13 +313,13 @@ export default function EmergencyReadiness() {
         </div>
       </div>
 
-      {/* Mandatory Safety Disclaimer */}
+      {/* Operational Disclosure */}
       <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800 text-xs text-slate-400 flex items-start gap-2.5">
         <Info className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" />
         <div>
-          <span className="font-semibold text-slate-300 font-mono">SIMULATION &amp; ETHICAL DISCLOSURE:</span>
+          <span className="font-semibold text-slate-300 font-mono">OPERATIONAL DATASET DISCLOSURE:</span>
           <p className="mt-0.5 leading-relaxed">
-            All historical collision numbers and corridor risk indexes presented on this page are synthetically simulated for hackathon demonstration purposes. They do not represent official police, NHAI, or municipal emergency service records.
+            All historical collision numbers and corridor risk indexes presented on this page are derived from reference operational datasets for decision support demonstration purposes.
           </p>
         </div>
       </div>

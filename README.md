@@ -46,29 +46,25 @@ When an incident is reported, RESQNET automatically generates and continuously u
                             [ SMART REPORTING PORTAL ]
                                           │
                                           ▼
-                   ┌─────────────────────────────────────────────┐
-                   │          AI ORCHESTRATION LAYER             │
-                   │ • Python FastAPI + Local Deterministic NLP  │
-                   │ • Transparent Priority Engine (0-6+ points) │
-                   └──────────────────────┬──────────────────────┘
-                                          │ Structured Incident Data
-                                          ▼
                 ┌───────────────────────────────────────────────────┐
-                │            RESQNET COORDINATION ENGINE            │
-                │                (Node.js / Express)                │
+                │          PRIMARY NODE.JS ORCHESTRATOR             │
+                │              (Express + Socket.IO)                │
                 │                                                   │
-                │ ┌─────────────────┬────────────────┬────────────┐ │
-                │ │ Fleet Dispatch  │ Trauma Intake  │ Route Risk │ │
-                │ │ (ALS/BLS Match) │ (Bed Capacity) │ Scorer     │ │
-                │ └────────┬────────┴────────┬───────┴─────┬──────┘ │
-                └──────────┼─────────────────┼─────────────┼────────┘
-                           │                 │             │
-                           ▼                 ▼             ▼
+                │  • AI Orchestrator (priorityEngine.js)           │
+                │  • Transparent Priority Scoring (0-6+ points)    │
+                │  • Fleet Dispatch & ALS/BLS Suitability Matcher   │
+                │  • Trauma Intake & ER Bed Capacity Evaluator      │
+                │  • Emergency Route Risk & Traffic Scorer          │
+                │  • Optional Remote AI Bridge (FastAPI / Gemini)   │
+                └─────────────────────────┬─────────────────────────┘
+                                          │ Structured Telemetry & State
+                                          ▼
                 ┌───────────────────────────────────────────────────┐
                 │      HERO FEATURE: RESQ HANDOFF (Live Brief)      │
                 │               /handoff/:incidentId                │
+                │             SQLite Database (node:sqlite)         │
                 └─────────────────────────┬─────────────────────────┘
-                                          │ Real-Time Sockets (Socket.IO)
+                                          │ Real-Time WebSockets (Socket.IO)
                 ┌─────────────────────────┼─────────────────────────┐
                 ▼                         ▼                         ▼
        [ RESQ HANDOFF UI ]      [ COMMAND CENTER ]     [ EMERGENCY READINESS ]

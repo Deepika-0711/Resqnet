@@ -71,7 +71,7 @@ export default function Home() {
           
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-cyan-500/40 bg-cyan-950/40 text-cyan-300 text-xs font-mono font-medium mb-6 shadow-sm">
             <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
-            TRACK 2: BHARAT INFRASTRUCTURE HACKATHON
+            BHARAT EMERGENCY RESPONSE INFRASTRUCTURE
           </div>
 
           <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tight text-white mb-4">
@@ -105,9 +105,9 @@ export default function Home() {
             </Link>
           </div>
 
-          {/* Live Prototype Disclaimer */}
+          {/* Operational Disclaimer */}
           <p className="text-[11px] text-slate-500 max-w-xl mx-auto font-mono">
-            RESQNET is a hackathon prototype designed for emergency coordination and decision support. AI-generated assessments do not constitute medical diagnosis.
+            RESQNET is an emergency coordination and decision support platform. Operational priority assessments provide decision support and do not replace trained emergency medical professionals.
           </p>
         </div>
       </section>

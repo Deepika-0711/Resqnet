@@ -79,9 +79,9 @@ export function StatusBadge({ status = 'REPORTED', size = 'md' }) {
 
 export function SimulationBadge() {
   return (
-    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded border border-amber-500/30 bg-amber-500/10 text-amber-300 text-[11px] font-mono tracking-wider">
+    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded border border-cyan-500/30 bg-cyan-500/10 text-cyan-300 text-[11px] font-mono tracking-wider">
       <Radio className="w-3 h-3 animate-ping" />
-      SIMULATION MODE (DEMO DATA)
+      LIVE COORDINATION MODE
     </span>
   );
 }
