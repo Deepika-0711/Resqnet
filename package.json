@@ -1,0 +1,26 @@
+{
+  "name": "resqnet-workspace",
+  "version": "1.0.0",
+  "description": "RESQNET — AI-Powered Road Accident Response & Coordination Platform (Track 2: Bharat Infra)",
+  "private": true,
+  "scripts": {
+    "setup:backend": "cd backend && npm install",
+    "setup:frontend": "cd frontend && npm install",
+    "seed": "cd backend && node seed.js",
+    "start:backend": "cd backend && node server.js",
+    "dev:backend": "cd backend && node --watch server.js",
+    "start:ai": "cd ai_service && python main.py",
+    "dev:frontend": "cd frontend && npm run dev",
+    "build:frontend": "cd frontend && npm run build"
+  },
+  "keywords": [
+    "bharat-infra",
+    "emergency-response",
+    "resqnet",
+    "ambulance-matching",
+    "trauma-coordination",
+    "resq-handoff"
+  ],
+  "author": "Hackathon Participant",
+  "license": "ISC"
+}
