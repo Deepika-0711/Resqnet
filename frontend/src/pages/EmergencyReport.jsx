@@ -173,18 +173,23 @@ export default function EmergencyReport() {
             mimeType
           });
 
-          if (res && res.data && res.data.transcript) {
-            setReportText(res.data.transcript);
-            setConfidenceScore(res.data.confidence || 0.95);
+          const transcript = res?.data?.transcript || res?.transcript || (typeof res?.data === 'string' ? res.data : null);
+          const confidence = res?.data?.confidence || res?.confidence || 0.95;
+
+          if (transcript) {
+            setReportText(transcript);
+            setConfidenceScore(confidence);
             setIsVoiceReport(true);
-            setVoiceNotice('Voice report transcribed — please review before submitting.');
+            setVoiceNotice('Voice report transcribed via ElevenLabs STT — please review below.');
+            setVoiceError('');
           } else {
-            throw new Error('No transcript returned');
+            throw new Error('No transcript text returned from audio processing');
           }
         } catch (apiErr) {
-          console.warn('ElevenLabs API error:', apiErr.message);
+          console.warn('ElevenLabs API error:', apiErr);
           setIsVoiceReport(false);
-          setVoiceError('ElevenLabs voice transcription unavailable (API key not configured or network unreachable). Typed reporting is active below.');
+          const errMsg = apiErr.response?.data?.error || apiErr.message || 'ElevenLabs voice transcription unavailable';
+          setVoiceError(`Voice transcription note: ${errMsg}. Typed reporting is active below.`);
           if (!reportText) {
             setReportText('There is a road accident near Mysore Road. Three people are injured and one vehicle is blocking the road.');
           }

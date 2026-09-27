@@ -1,4 +1,10 @@
-require('dotenv').config();
+const path = require('path');
+const dotenv = require('dotenv');
+
+// Load environment variables from root .env or local .env
+dotenv.config({ path: path.resolve(__dirname, '../.env') });
+dotenv.config();
+
 const http = require('http');
 const express = require('express');
 const cors = require('cors');
