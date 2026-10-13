@@ -5,16 +5,19 @@ import {
   Clock, 
   MapPin, 
   CheckCircle2, 
-  ShieldCheck, 
   Radio, 
-  Sparkles, 
   ChevronRight, 
   AlertCircle,
   Phone,
-  User,
-  Activity
+  Search,
+  Filter,
+  RefreshCw,
+  ArrowRight,
+  ShieldCheck,
+  Building2
 } from 'lucide-react';
-import { StatusBadge } from '../components/StatusBadge';
+import MapView from '../components/MapView';
+import { SimulationBadge } from '../components/StatusBadge';
 import { api } from '../services/api';
 import { socket } from '../services/socket';
 
@@ -27,7 +30,12 @@ export default function AmbulanceMatching() {
   const [loading, setLoading] = useState(true);
   const [assigningId, setAssigningId] = useState(null);
   const [assignedAmbulance, setAssignedAmbulance] = useState(null);
+  const [selectedAmbulance, setSelectedAmbulance] = useState(null);
   const [successNotice, setSuccessNotice] = useState('');
+
+  // Filters & search
+  const [searchQuery, setSearchQuery] = useState('');
+  const [capabilityFilter, setCapabilityFilter] = useState('ALL'); // 'ALL' | 'Advanced' | 'Basic'
 
   const loadAmbulances = async () => {
     try {
@@ -36,6 +44,9 @@ export default function AmbulanceMatching() {
         setAmbulances(res.ambulances);
         const alreadyAssigned = res.ambulances.find(a => a.isAssignedToThis || a.status === 'ASSIGNED');
         if (alreadyAssigned) setAssignedAmbulance(alreadyAssigned);
+        
+        const top = res.ambulances.find(a => a.isRecommended) || res.ambulances[0];
+        if (top) setSelectedAmbulance(top);
       }
     } catch (err) {
       console.error('Failed loading ambulances:', err);
@@ -62,7 +73,7 @@ export default function AmbulanceMatching() {
     try {
       const res = await api.assignAmbulance(incidentId, amb.id);
       setAssignedAmbulance(amb);
-      setSuccessNotice(`Unit ${amb.id} (${amb.name}) successfully assigned and dispatched.`);
+      setSuccessNotice(`Unit ${amb.id} (${amb.name}) assigned and dispatched.`);
       loadAmbulances();
     } catch (err) {
       console.error('Assignment error:', err.message);
@@ -71,223 +82,302 @@ export default function AmbulanceMatching() {
     }
   };
 
+  // Filter ambulances
+  const filteredAmbulances = ambulances.filter(amb => {
+    const q = searchQuery.toLowerCase();
+    const matchesSearch = !searchQuery.trim() ||
+      amb.id.toLowerCase().includes(q) ||
+      amb.name.toLowerCase().includes(q) ||
+      amb.base_location?.toLowerCase().includes(q);
+
+    const matchesCapability = capabilityFilter === 'ALL' || 
+      (capabilityFilter === 'Advanced' ? amb.capability?.toLowerCase().includes('adv') : amb.capability?.toLowerCase().includes('basic'));
+
+    return matchesSearch && matchesCapability;
+  });
+
   return (
-    <div className="max-w-5xl mx-auto px-4 py-8 pb-28 space-y-8">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-32 space-y-6">
       
       {/* Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-resq-border pb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-[#E8E8E1] gap-3">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <span className="text-xs font-mono font-bold text-cyan-400 uppercase tracking-widest">
-              MULTI-FACTOR FLEET DISPATCH ENGINE
+            <span className="w-2 h-2 rounded-full bg-[#245C4A]" />
+            <span className="text-xs uppercase font-sans font-semibold tracking-wider text-[#707970]">
+              Fleet Operations
             </span>
-            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-cyan-950 border border-cyan-800 text-cyan-300">
-              10 UNITS SCANNED
-            </span>
+            <SimulationBadge />
           </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-white">
-            Smart Ambulance Matching
+          <h1 className="font-serif text-3xl font-bold text-[#203B32] tracking-tight">
+            Ambulance Fleet Matching
           </h1>
-          <p className="text-xs text-slate-400 mt-1">
-            Recommends units based on life-support capability (ALS vs BLS), crew status, and arrival ETA — not solely geographical distance.
+          <p className="text-xs text-[#707970] font-sans mt-0.5">
+            Multi-factor ALS/BLS fleet ranking by transit distance, equipment capability, and current availability.
           </p>
         </div>
 
-        {assignedAmbulance && (
+        <div className="flex items-center gap-2">
           <Link
-            to={`/hospitals?incidentId=${incidentId}`}
-            className="flex items-center gap-2 px-5 py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 text-white font-bold text-xs tracking-wider shadow-lg shadow-emerald-600/20 transition-all hover:scale-105"
+            to="/hospitals"
+            className="px-4 py-2 rounded-xl bg-white hover:bg-[#F8F7F2] text-[#203B32] border border-[#E8E8E1] text-xs font-sans font-semibold flex items-center gap-1.5 transition-colors"
           >
-            <span>PROCEED TO HOSPITAL MATCHING</span>
-            <ChevronRight className="w-4 h-4" />
+            <Building2 className="w-3.5 h-3.5 text-[#245C4A]" />
+            <span>Trauma Network</span>
           </Link>
-        )}
+
+          <Link
+            to={`/handoff/${incidentId}`}
+            className="px-4 py-2 rounded-xl bg-[#245C4A] hover:bg-[#1D4A3B] text-white text-xs font-sans font-semibold flex items-center gap-1.5 shadow-sm transition-all"
+          >
+            <span>Handoff Brief</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </Link>
+        </div>
       </div>
 
       {successNotice && (
-        <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/40 text-emerald-300 text-xs flex items-center justify-between shadow-lg">
+        <div className="p-3.5 bg-[#EEF4EF] border border-[#CBDACD] text-[#245C4A] text-xs font-sans rounded-2xl flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
-            <span className="font-semibold">{successNotice}</span>
+            <CheckCircle2 className="w-4 h-4 shrink-0" />
+            <span className="font-medium">{successNotice}</span>
           </div>
-          <Link
-            to={`/hospitals?incidentId=${incidentId}`}
-            className="px-3 py-1 rounded-lg bg-emerald-600 text-white font-mono font-bold text-xs hover:bg-emerald-500"
-          >
-            Next: Match Hospital →
+          <Link to={`/handoff/${incidentId}`} className="font-bold underline text-xs">
+            Review in RESQ Handoff →
           </Link>
         </div>
       )}
 
-      {/* Recommended Top Ambulance Highlight */}
-      {ambulances.length > 0 && (
-        <div>
-          <div className="flex items-center gap-2 mb-3">
-            <Sparkles className="w-4 h-4 text-cyan-400" />
-            <span className="text-xs font-mono font-bold uppercase tracking-wider text-cyan-300">
-              AI OPTIMAL FLEET RECOMMENDATION:
-            </span>
+      {/* COORDINATED MAP-AND-LIST EXPERIENCE */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        
+        {/* Left Column: Elegant Table & Filtered Roster (Not huge cards) */}
+        <div className="lg:col-span-8 space-y-4">
+          <div className="bg-white rounded-3xl border border-[#E8E8E1] p-5 shadow-subtle">
+            
+            {/* Filter Bar */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pb-4 border-b border-[#E8E8E1] mb-4">
+              <div className="relative flex-1 max-w-sm">
+                <Search className="w-3.5 h-3.5 text-[#929B92] absolute left-3 top-2.5" />
+                <input
+                  type="text"
+                  placeholder="Search by unit ID, name, or base..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-8 pr-3 py-1.5 text-xs bg-[#F8F7F2] border border-[#E8E8E1] rounded-xl text-[#203B32] placeholder-[#929B92] focus:outline-none focus:border-[#245C4A]"
+                />
+              </div>
+
+              <div className="flex items-center gap-1 text-xs font-sans">
+                <span className="text-[11px] text-[#707970] mr-1">Capability:</span>
+                {['ALL', 'Advanced', 'Basic'].map((cap) => (
+                  <button
+                    key={cap}
+                    onClick={() => setCapabilityFilter(cap)}
+                    className={`px-2.5 py-1 rounded-lg border transition-all ${
+                      capabilityFilter === cap
+                        ? 'bg-[#EEF4EF] text-[#245C4A] font-semibold border-[#CBDACD]'
+                        : 'bg-[#F8F7F2] text-[#707970] border-[#E8E8E1] hover:text-[#203B32]'
+                    }`}
+                  >
+                    {cap}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Elegant Roster Table */}
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs font-sans">
+                <thead>
+                  <tr className="border-b border-[#E8E8E1] text-[#707970] text-[11px] uppercase tracking-wider">
+                    <th className="pb-3 font-semibold pl-2">Operational Unit</th>
+                    <th className="pb-3 font-semibold">Capability</th>
+                    <th className="pb-3 font-semibold">Base Location</th>
+                    <th className="pb-3 font-semibold">ETA to Scene</th>
+                    <th className="pb-3 font-semibold">Status</th>
+                    <th className="pb-3 font-semibold pr-2 text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#E8E8E1]">
+                  {filteredTransits(filteredAmbulances).length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="py-8 text-center text-[#707970]">
+                        No units match the search filter.
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredAmbulances.map((amb) => {
+                      const isAssigned = assignedAmbulance?.id === amb.id || amb.status === 'ASSIGNED';
+                      const isSelected = selectedAmbulance?.id === amb.id;
+                      const isRec = amb.isRecommended;
+
+                      return (
+                        <tr
+                          key={amb.id}
+                          onClick={() => setSelectedAmbulance(amb)}
+                          className={`hover:bg-[#F8F7F2] transition-colors cursor-pointer ${
+                            isSelected ? 'bg-[#EEF4EF]/50' : ''
+                          } ${isRec ? 'border-l-2 border-l-[#245C4A]' : ''}`}
+                        >
+                          <td className="py-3.5 pl-2">
+                            <div className="flex items-center gap-2">
+                              <span className="font-mono font-bold text-[#203B32]">{amb.id}</span>
+                              {isRec && (
+                                <span className="text-[9px] font-bold px-1.5 py-0.2 bg-[#EEF4EF] text-[#245C4A] border border-[#CBDACD] rounded">
+                                  RECOMMENDED
+                                </span>
+                              )}
+                            </div>
+                            <span className="text-[11px] text-[#707970] block">{amb.name}</span>
+                          </td>
+
+                          <td className="py-3.5">
+                            <span className={`inline-block px-2 py-0.5 rounded text-[11px] font-semibold ${
+                              amb.capability?.includes('Advanced') || amb.capability?.includes('ALS')
+                                ? 'bg-[#EEF4EF] text-[#245C4A] border border-[#CBDACD]'
+                                : 'bg-[#F4F7F4] text-[#707970] border border-[#E8E8E1]'
+                            }`}>
+                              {amb.capability || 'BLS'}
+                            </span>
+                          </td>
+
+                          <td className="py-3.5 text-[#203B32]">
+                            {amb.base_location || 'Bengaluru Central'}
+                          </td>
+
+                          <td className="py-3.5">
+                            <div className="flex items-center gap-1 text-[#203B32] font-semibold">
+                              <Clock className="w-3.5 h-3.5 text-[#245C4A]" />
+                              <span>{amb.eta_min || 6} min</span>
+                            </div>
+                          </td>
+
+                          <td className="py-3.5">
+                            <span className={`inline-flex items-center gap-1 text-[11px] font-medium ${
+                              isAssigned ? 'text-[#B94430]' : 'text-[#245C4A]'
+                            }`}>
+                              <span className={`w-1.5 h-1.5 rounded-full ${isAssigned ? 'bg-[#E66B55]' : 'bg-[#245C4A]'}`} />
+                              {isAssigned ? 'Assigned' : 'Available'}
+                            </span>
+                          </td>
+
+                          <td className="py-3.5 pr-2 text-right">
+                            {isAssigned ? (
+                              <span className="text-[11px] font-semibold text-[#B94430] bg-[#FCECE9] px-2.5 py-1 rounded-lg border border-[#F5C2BA]">
+                                Dispatched
+                              </span>
+                            ) : (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleAssign(amb);
+                                }}
+                                disabled={assigningId === amb.id}
+                                className="px-3 py-1 rounded-lg bg-[#245C4A] hover:bg-[#1D4A3B] text-white text-xs font-semibold shadow-sm transition-all disabled:opacity-50"
+                              >
+                                {assigningId === amb.id ? 'Dispatching...' : 'Dispatch'}
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+
           </div>
+        </div>
 
-          {(() => {
-            const top = ambulances.find(a => a.isRecommended) || ambulances[0];
-            const isAssigned = top.isAssignedToThis || top.status === 'ASSIGNED';
-            return (
-              <div className="relative rounded-2xl border-2 border-cyan-500/60 bg-gradient-to-r from-[#0d1629] via-[#09101d] to-[#0d1629] p-6 shadow-2xl shadow-cyan-950/50">
-                <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                  
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-3">
-                      <span className="text-2xl font-extrabold text-white font-mono">
-                        {top.id}
-                      </span>
-                      <span className="text-xs font-semibold text-slate-300">
-                        {top.name}
-                      </span>
-                      <span className={`text-[11px] font-mono px-2.5 py-0.5 rounded-full font-bold uppercase ${
-                        top.capability === 'Advanced'
-                          ? 'bg-purple-500/20 text-purple-300 border border-purple-500/40'
-                          : 'bg-blue-500/20 text-blue-300 border border-blue-500/40'
-                      }`}>
-                        {top.capability} Life Support
-                      </span>
-                    </div>
+        {/* Right Column: Contextual Detail Panel & Spatial Map Preview */}
+        <div className="lg:col-span-4 space-y-4">
+          
+          {/* Contextual Detail Panel */}
+          {selectedAmbulance && (
+            <div className="bg-white rounded-3xl border border-[#E8E8E1] p-5 shadow-subtle space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b border-[#E8E8E1]">
+                <div>
+                  <span className="text-[11px] font-sans text-[#707970] uppercase">Selected Unit Detail</span>
+                  <h3 className="font-serif text-lg font-bold text-[#203B32]">
+                    {selectedAmbulance.name}
+                  </h3>
+                </div>
+                <span className="font-mono text-xs font-bold text-[#245C4A] bg-[#EEF4EF] px-2.5 py-1 rounded-lg border border-[#CBDACD]">
+                  {selectedAmbulance.id}
+                </span>
+              </div>
 
-                    <p className="text-xs text-slate-300 max-w-xl font-sans leading-relaxed">
-                      <strong>Recommendation Rationale:</strong> Selected because it provides the required Advanced Emergency Support capability with the lowest feasible arrival ETA ({top.etaMin} min).
-                    </p>
+              {/* Rationale if recommended */}
+              <div className="p-3.5 bg-[#EEF4EF] rounded-2xl border border-[#CBDACD] text-xs font-sans text-[#203B32]">
+                <span className="font-bold text-[#245C4A] block mb-1">
+                  Why this unit was recommended:
+                </span>
+                <p className="text-[#203B32] leading-relaxed text-[11px]">
+                  {selectedAmbulance.recommendation_reason || 
+                    `Closest available ALS paramedic team with 6-minute estimated transit time along Mysore Road corridor.`}
+                </p>
+              </div>
 
-                    <div className="flex flex-wrap items-center gap-4 text-xs font-mono text-slate-400 pt-1">
-                      <span className="flex items-center gap-1.5 text-emerald-400 font-bold">
-                        <Clock className="w-3.5 h-3.5" />
-                        ETA: {top.etaMin} MINUTES
-                      </span>
-                      <span className="flex items-center gap-1.5">
-                        <MapPin className="w-3.5 h-3.5 text-resq-accent" />
-                        {top.distanceKm} km ({top.base_location})
-                      </span>
-                      <span className="flex items-center gap-1.5">
-                        <User className="w-3.5 h-3.5" />
-                        Driver: {top.driver_name}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="shrink-0 w-full md:w-auto">
-                    {isAssigned ? (
-                      <div className="flex items-center gap-2 px-5 py-3 rounded-xl bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 font-mono font-bold text-xs">
-                        <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                        <span>ASSIGNED &amp; ACTIVE</span>
-                      </div>
-                    ) : (
-                      <button
-                        onClick={() => handleAssign(top)}
-                        disabled={assigningId === top.id}
-                        className="w-full md:w-auto px-6 py-3.5 rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold text-xs font-mono tracking-wider shadow-lg shadow-cyan-600/30 transition-all hover:scale-105 active:scale-95 disabled:opacity-50"
-                      >
-                        {assigningId === top.id ? 'ASSIGNING...' : 'CONFIRM ASSIGNMENT'}
-                      </button>
-                    )}
-                  </div>
-
+              <div className="space-y-2 text-xs font-sans text-[#707970]">
+                <div className="flex justify-between py-1 border-b border-[#E8E8E1]">
+                  <span>Vehicle Registration:</span>
+                  <span className="font-mono font-medium text-[#203B32]">{selectedAmbulance.vehicle_number || 'KA-01-EA-4219'}</span>
+                </div>
+                <div className="flex justify-between py-1 border-b border-[#E8E8E1]">
+                  <span>Lead Paramedic:</span>
+                  <span className="font-medium text-[#203B32]">{selectedAmbulance.driver_name || 'Officer S. Kumar'}</span>
+                </div>
+                <div className="flex justify-between py-1 border-b border-[#E8E8E1]">
+                  <span>Direct Radio:</span>
+                  <span className="font-mono text-[#245C4A]">{selectedAmbulance.contact_number || '+91 98450 11202'}</span>
                 </div>
               </div>
-            );
-          })()}
+
+              {/* Action Button */}
+              <div>
+                {assignedAmbulance?.id === selectedAmbulance.id ? (
+                  <div className="w-full py-2.5 rounded-xl bg-[#FCECE9] border border-[#F5C2BA] text-[#B94430] text-xs font-semibold text-center">
+                    Currently Assigned to Incident {incidentId}
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => handleAssign(selectedAmbulance)}
+                    disabled={assigningId === selectedAmbulance.id}
+                    className="w-full py-2.5 rounded-xl bg-[#245C4A] hover:bg-[#1D4A3B] text-white text-xs font-semibold transition-all shadow-sm flex items-center justify-center gap-1.5"
+                  >
+                    <Truck className="w-3.5 h-3.5" />
+                    <span>Assign &amp; Dispatch {selectedAmbulance.id}</span>
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Spatial Map Preview */}
+          <div className="bg-white rounded-3xl border border-[#E8E8E1] p-3 shadow-subtle">
+            <div className="h-[260px] rounded-2xl overflow-hidden border border-[#E8E8E1]">
+              <MapView
+                ambulances={filteredAmbulances}
+                center={selectedAmbulance?.lat ? [selectedAmbulance.lat, selectedAmbulance.lng] : [12.955, 77.545]}
+                zoom={13}
+                height="100%"
+              />
+            </div>
+            <p className="text-[11px] text-[#707970] text-center mt-2 font-sans">
+              Live spatial coordinates of available fleet units
+            </p>
+          </div>
+
         </div>
-      )}
 
-      {/* Alternative Fleet Table */}
-      <div className="glass-panel p-6 rounded-2xl border border-resq-border">
-        <div className="flex items-center justify-between mb-4">
-          <span className="text-xs font-mono font-bold uppercase tracking-wider text-slate-300">
-            ALL MONITORED FLEET UNITS ({ambulances.length})
-          </span>
-          <span className="text-[11px] font-mono text-slate-500">Sorted by dynamic suitability score</span>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs font-sans">
-            <thead>
-              <tr className="border-b border-resq-border text-slate-400 font-mono text-[11px] uppercase">
-                <th className="pb-3 font-semibold">Ambulance</th>
-                <th className="pb-3 font-semibold">Capability</th>
-                <th className="pb-3 font-semibold">Distance</th>
-                <th className="pb-3 font-semibold">ETA</th>
-                <th className="pb-3 font-semibold">Status</th>
-                <th className="pb-3 font-semibold text-right">Action</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-resq-border/40">
-              {ambulances.map((amb) => {
-                const isAssigned = amb.isAssignedToThis || amb.status === 'ASSIGNED';
-                return (
-                  <tr key={amb.id} className="hover:bg-slate-800/40 transition-colors">
-                    <td className="py-3.5 font-mono font-bold text-white">
-                      <div className="flex items-center gap-2">
-                        <span>{amb.id}</span>
-                        {amb.isRecommended && (
-                          <span className="px-1.5 py-0.2 rounded bg-cyan-950 text-cyan-400 border border-cyan-800 text-[10px] font-mono">
-                            AI Choice
-                          </span>
-                        )}
-                      </div>
-                      <span className="text-[11px] font-sans font-normal text-slate-400 block mt-0.5">
-                        {amb.name}
-                      </span>
-                    </td>
-
-                    <td className="py-3.5">
-                      <span className={`px-2 py-0.5 rounded font-mono text-[11px] ${
-                        amb.capability === 'Advanced' ? 'bg-purple-950/60 text-purple-300' : 'bg-slate-800 text-slate-300'
-                      }`}>
-                        {amb.capability} (ALS)
-                      </span>
-                    </td>
-
-                    <td className="py-3.5 text-slate-300 font-mono">
-                      {amb.distanceKm} km
-                    </td>
-
-                    <td className="py-3.5 font-mono font-bold text-emerald-400">
-                      {amb.etaMin} min
-                    </td>
-
-                    <td className="py-3.5 font-mono">
-                      <span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${
-                        isAssigned
-                          ? 'bg-blue-950 text-blue-400 border border-blue-800'
-                          : amb.status === 'AVAILABLE'
-                          ? 'bg-emerald-950 text-emerald-400 border border-emerald-800'
-                          : 'bg-slate-800 text-slate-400'
-                      }`}>
-                        {isAssigned ? 'ASSIGNED' : amb.status}
-                      </span>
-                    </td>
-
-                    <td className="py-3.5 text-right">
-                      {isAssigned ? (
-                        <span className="text-emerald-400 font-mono font-semibold text-[11px]">
-                          Assigned ✓
-                        </span>
-                      ) : (
-                        <button
-                          onClick={() => handleAssign(amb)}
-                          disabled={assigningId === amb.id}
-                          className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-cyan-500/30 font-mono text-xs hover:border-cyan-400 transition-all disabled:opacity-50"
-                        >
-                          {assigningId === amb.id ? '...' : 'Assign'}
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
       </div>
 
     </div>
   );
+}
+
+function filteredTransits(arr) {
+  return arr || [];
 }

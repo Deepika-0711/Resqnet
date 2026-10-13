@@ -17,19 +17,25 @@ import {
   AlertCircle,
   ShieldAlert,
   Activity,
-  HeartPulse,
-  Flame,
   X,
-  Siren,
-  Brain,
-  History,
-  Info
+  ArrowRight,
+  RefreshCw,
+  PhoneCall,
+  Check
 } from 'lucide-react';
 import QRCode from 'qrcode';
-import { PriorityBadge, StatusBadge } from '../components/StatusBadge';
+import { PriorityBadge, StatusBadge, SimulationBadge } from '../components/StatusBadge';
 import TimelineView from '../components/TimelineView';
 import { api } from '../services/api';
 import { socket } from '../services/socket';
+
+const STATUS_PROGRESSION = [
+  { key: 'REPORTED', label: 'Reported' },
+  { key: 'ASSESSED', label: 'Assessed' },
+  { key: 'ASSIGNED', label: 'Assigned' },
+  { key: 'HOSPITAL_ALERTED', label: 'Pre-Alert' },
+  { key: 'AMBULANCE_EN_ROUTE', label: 'En Route' }
+];
 
 export default function ResqHandoff() {
   const { incidentId: paramId } = useParams();
@@ -38,9 +44,14 @@ export default function ResqHandoff() {
   const [handoff, setHandoff] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeRoleView, setActiveRoleView] = useState('ALL'); // 'ALL' | 'RESPONDER' | 'HOSPITAL' | 'COMMAND'
+  
+  // Modals & UI states
   const [qrModal, setQrModal] = useState(false);
   const [qrUrl, setQrUrl] = useState('');
   const [copied, setCopied] = useState(false);
+  const [statusModal, setStatusModal] = useState(false);
+  const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [actionNotice, setActionNotice] = useState('');
 
   const fetchHandoff = async () => {
     try {
@@ -49,7 +60,7 @@ export default function ResqHandoff() {
         setHandoff(res.handoff);
       }
     } catch (err) {
-      console.warn('Failed to load handoff, using cached live state');
+      console.warn('Failed to load handoff, using localized brief');
     } finally {
       setLoading(false);
     }
@@ -80,206 +91,216 @@ export default function ResqHandoff() {
     };
   }, [incidentId]);
 
+  // Generate QR Code data URL
   const handleOpenQr = async () => {
     try {
-      const url = window.location.href;
-      const dataUrl = await QRCode.toDataURL(url, { width: 340, margin: 2 });
-      setQrUrl(dataUrl);
+      const payload = JSON.stringify({
+        incidentId,
+        url: window.location.href,
+        status: handoff?.status || 'ASSIGNED',
+        priority: handoff?.priority || 'HIGH'
+      });
+      const url = await QRCode.toDataURL(payload, {
+        width: 280,
+        margin: 2,
+        color: { dark: '#203B32', light: '#FFFFFF' }
+      });
+      setQrUrl(url);
       setQrModal(true);
     } catch (e) {
-      console.error(e);
+      console.error('QR generation error:', e);
     }
   };
 
-  const handleCopyLink = () => {
+  const handleCopy = () => {
     navigator.clipboard.writeText(window.location.href);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const handleUpdateStatus = async (newStatus) => {
+    setUpdatingStatus(true);
+    try {
+      await api.updateIncidentStatus(incidentId, newStatus);
+      setActionNotice(`Status updated to ${newStatus}`);
+      setStatusModal(false);
+      await fetchHandoff();
+    } catch (err) {
+      setActionNotice('Status update submitted locally.');
+      setStatusModal(false);
+    } finally {
+      setUpdatingStatus(false);
+      setTimeout(() => setActionNotice(''), 4000);
+    }
+  };
+
   const h = handoff || {
-    id: `HND-${incidentId}`,
-    incidentId: incidentId,
-    status: 'LIVE',
+    incident_id: incidentId,
+    id: incidentId,
+    status: 'AMBULANCE_EN_ROUTE',
     priority: 'HIGH',
-    location: 'Mysore Road, Bengaluru',
-    incidentType: 'Road Accident',
-    peopleInvolved: 3,
-    injuryIndicators: ['Multiple reported injuries', 'Possible blunt trauma'],
-    hazards: ['Fuel spill risk on roadway'],
-    roadObstruction: true,
-    fireSmoke: false,
-    incidentStatus: 'AMBULANCE_EN_ROUTE',
-    ambulance: {
-      id: 'AMB-102',
-      name: 'FastResponse ALS-102',
-      capability: 'Advanced Life Support (ALS)',
-      etaMin: 7,
-      status: 'EN_ROUTE',
-      vehicleNumber: 'KA-05-EA-1020',
-      contact: '+91-98765-43210',
-      driver: 'Manoj Gowda'
+    location: 'Mysore Road, Near NICE Road Junction, Bengaluru',
+    incident_summary: 'There is a road accident near Mysore Road. Three people are injured and one vehicle is blocking the road.',
+    people_count: 3,
+    injury_indicators: ['Multiple reported injuries', 'Possible blunt trauma'],
+    road_obstruction: 1,
+    fire_smoke: 0,
+    created_at: new Date().toISOString(),
+    assigned_ambulance: {
+      id: 'AMB-BLR-02',
+      name: 'LifeCare ALS Express 02',
+      capability: 'Advanced (ALS)',
+      vehicle_number: 'KA-01-EA-4219',
+      driver_name: 'Officer S. Kumar',
+      contact_number: '+91 98450 11202',
+      status: 'DISPATCHED',
+      eta_min: 6
     },
-    hospital: {
-      name: 'City Emergency Hospital',
-      capability: 'Level 1 Trauma & Resuscitation',
-      etaMin: 12,
-      prealertStatus: 'SENT',
-      emergencyBedsAvailable: 8,
-      icuBedsAvailable: 4
+    selected_hospital: {
+      id: 'HOSP-BLR-01',
+      name: 'Fortis Hospital - Bannerghatta',
+      address: '154/9, Bannerghatta Road, Opp IIMB, Bengaluru',
+      capability: 'Level 1 Trauma',
+      emergency_beds_available: 8,
+      icu_beds_available: 3,
+      contact_phone: '+91 80 6621 4444',
+      alert_status: 'PRE-ALERT SENT',
+      alert_sent_at: new Date().toISOString(),
+      eta_min: 14
     },
-    route: {
-      name: 'Route B',
-      distanceKm: 7.3,
-      etaMin: 12,
-      traffic: 'Moderate',
-      risk: 'Low reported risk'
-    },
-    trafficPoliceBrief: {
-      location: 'Mysore Road, Bengaluru',
-      roadObstruction: '1 lane blocked',
-      hazard: 'Damaged vehicle on roadway',
-      estimatedImpact: 'Traffic slowdown around incident corridor',
-      recommendedAction: 'Traffic control / diversion assessment required',
-      informationPrepared: true,
-      notificationState: 'SIMULATED_NOTIFIED',
-      disclaimer: 'SIMULATED OPERATIONAL BRIEF (No actual police dispatch)'
-    },
-    corridorMemory: {
-      corridor: 'Mysore Road',
-      summary: 'Previous incidents on this corridor frequently involved heavy congestion during evening hours.',
-      recurringHazards: ['Evening rush hour congestion', 'Intersection bottleneck'],
-      historicalObservations: ['Frequent rear-end collisions during peak traffic hours'],
-      recentMemories: [
-        { id: 'MEM-001', location: 'Mysore Road', severity: 'HIGH', summary: 'Multi-vehicle collision near silk board ramp' }
-      ],
-      source: 'RESQNET Incident Memory (Breeth AI)'
-    },
-    aiReasoning: [
-      'Multiple people involved (+2)',
-      'Reported injuries (+3)',
-      'Road obstruction detected (+1)'
-    ],
-    hospitalPreparation: [
-      'Emergency department alerted',
-      'Prepare 3 emergency intake resuscitation bays',
-      'Blood bank O-negative on standby',
-      'Incoming ambulance ETA: 12 min'
-    ],
+    route_name: 'Route B — Outer Ring Road & Hosur Corridor',
+    route_eta_min: 14,
+    route_distance_km: 7.2,
+    route_traffic: 'Moderate Flow',
     timeline: [
-      { event_type: 'REPORTED', time_display: '10:32', description: 'Emergency reported near Mysore Road. 3 casualties reported.', actor: 'WITNESS' },
-      { event_type: 'AI_ASSESSMENT', time_display: '10:33', description: 'AI Priority assessed as HIGH (Score: 6/10). Multi-trauma protocol triggered.', actor: 'AI_ANALYZER' },
-      { event_type: 'BREETH_MEMORY_FOUND', time_display: '10:34', description: 'Breeth AI retrieved corridor memory: High congestion area.', actor: 'BREETH_AI' },
-      { event_type: 'AMBULANCE_ASSIGNED', time_display: '10:35', description: 'AMB-102 (ALS) dispatched. ETA: 7 min. Driver: Manoj Gowda.', actor: 'DISPATCHER' },
-      { event_type: 'HOSPITAL_SELECTED', time_display: '10:36', description: 'Destination hospital confirmed: City Emergency Hospital.', actor: 'DISPATCHER' },
-      { event_type: 'HOSPITAL_ALERTED', time_display: '10:37', description: 'Hospital Pre-Alert transmitted to ER Triage desk. 3 trauma bays reserved.', actor: 'TELEMETRY' },
-      { event_type: 'TRAFFIC_ALERT_CREATED', time_display: '10:37', description: 'Traffic/Police brief generated for corridor obstruction management.', actor: 'TRAFFIC_ENGINE' },
-      { event_type: 'ROUTE_SELECTED', time_display: '10:38', description: 'Route B locked for transit (7.3 km, 12 min, Moderate traffic, Low risk).', actor: 'ROUTE_ENGINE' },
-      { event_type: 'AMBULANCE_EN_ROUTE', time_display: '10:39', description: 'Unit AMB-102 en route with active emergency sirens.', actor: 'AMBULANCE_GPS' }
-    ],
-    lastUpdated: new Date().toISOString()
+      { id: 1, event_type: 'REPORTED', description: 'Citizen voice intake logged via ElevenLabs', timestamp: new Date(Date.now() - 1000 * 60 * 12).toISOString() },
+      { id: 2, event_type: 'AI_ASSESSMENT', description: 'Priority assessed as HIGH (6 points, multiple casualties + road obstruction)', timestamp: new Date(Date.now() - 1000 * 60 * 10).toISOString() },
+      { id: 3, event_type: 'AMBULANCE_ASSIGNED', description: 'ALS Unit AMB-BLR-02 assigned & dispatched', timestamp: new Date(Date.now() - 1000 * 60 * 8).toISOString() },
+      { id: 4, event_type: 'HOSPITAL_ALERTED', description: 'Trauma pre-alert transmitted to Fortis Hospital emergency desk', timestamp: new Date(Date.now() - 1000 * 60 * 6).toISOString() },
+      { id: 5, event_type: 'ROUTE_SELECTED', description: 'Risk-optimized corridor Route B locked', timestamp: new Date(Date.now() - 1000 * 60 * 4).toISOString() }
+    ]
   };
 
-  const tpBrief = h.trafficPoliceBrief || {
-    location: h.location,
-    roadObstruction: h.roadObstruction ? '1 lane blocked' : 'None reported',
-    hazard: h.hazards ? (Array.isArray(h.hazards) ? h.hazards.join(', ') : h.hazards) : 'Damaged vehicle',
-    estimatedImpact: 'Traffic slowdown around incident corridor',
-    recommendedAction: 'Traffic control / diversion assessment required',
-    informationPrepared: true,
-    notificationState: 'SIMULATED_NOTIFIED',
-    disclaimer: 'SIMULATED OPERATIONAL BRIEF'
-  };
-
-  const cMemory = h.corridorMemory || {
-    corridor: h.location,
-    summary: 'Previous incidents on this corridor frequently involved heavy congestion during evening hours.',
-    recurringHazards: ['Rush hour traffic bottleneck'],
-    historicalObservations: ['Related previous incident context available'],
-    source: 'RESQNET Incident Memory (Breeth AI)'
-  };
+  const currentStatusIndex = STATUS_PROGRESSION.findIndex(s => s.key === h.status);
+  const activeProgressionIndex = currentStatusIndex !== -1 ? currentStatusIndex : 3;
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-8 pb-32 space-y-8">
+    <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 pb-32 space-y-6">
       
-      {/* Top Banner / Hero Summary */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-cyan-900/50 pb-6">
+      {/* 1. TOP HEADER: Briefing Actions & Title */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-[#E8E8E1] gap-4">
         <div>
-          <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-            <span className="p-1 rounded bg-cyan-500/20 text-cyan-400">
-              <FileText className="w-4 h-4" />
+          <div className="flex items-center gap-2 mb-1">
+            <span className="w-2 h-2 rounded-full bg-[#245C4A]" />
+            <span className="text-xs uppercase font-sans font-semibold tracking-wider text-[#707970]">
+              Signature Coordinated Briefing
             </span>
-            <span className="text-xs font-mono font-bold tracking-widest text-cyan-400 uppercase">
-              RESQ HANDOFF — SINGLE SHARED EMERGENCY RECORD
-            </span>
-            <span className="flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-500/20 border border-emerald-500/40 text-emerald-300">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-              LIVE TELEMETRY SYNC
-            </span>
+            <SimulationBadge />
           </div>
-          
-          <div className="flex items-center gap-3">
-            <h1 className="text-3xl sm:text-4xl font-extrabold text-white font-mono tracking-wider">
-              {h.incidentId}
-            </h1>
-            <PriorityBadge priority={h.priority} size="md" />
-            <StatusBadge status={h.incidentStatus || h.status} />
-          </div>
-          <p className="text-xs text-slate-400 mt-1 flex items-center gap-2 flex-wrap">
-            <span className="flex items-center gap-1">
-              <MapPin className="w-3.5 h-3.5 text-resq-accent" />
-              <strong className="text-slate-200">{h.location}</strong>
-            </span>
-            <span>•</span>
-            <span>Last updated: {new Date(h.lastUpdated || Date.now()).toLocaleTimeString()}</span>
+          <h1 className="font-serif text-3xl font-bold text-[#203B32] tracking-tight">
+            RESQ Handoff Brief
+          </h1>
+          <p className="text-xs text-[#707970] font-sans mt-0.5">
+            Continuously updated digital emergency brief connecting dispatch, ambulance, and trauma desk.
           </p>
         </div>
 
-        {/* Action Buttons */}
-        <div className="flex items-center gap-2 flex-wrap">
+        {/* Action Controls */}
+        <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={handleOpenQr}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-cyan-500/40 text-xs font-mono font-medium shadow-sm transition-all"
+            className="px-3 py-1.5 rounded-xl bg-white border border-[#E8E8E1] hover:border-[#245C4A] text-xs font-sans font-semibold text-[#203B32] flex items-center gap-1.5 transition-colors shadow-subtle"
+            title="Display QR Code for hospital intake handover"
           >
-            <QrCode className="w-4 h-4 text-cyan-400" />
-            <span>SECTION 8: HANDOFF QR</span>
+            <QrCode className="w-3.5 h-3.5 text-[#245C4A]" />
+            <span>QR Pass</span>
+          </button>
+
+          <button
+            onClick={() => setStatusModal(true)}
+            className="px-3.5 py-1.5 rounded-xl bg-white border border-[#E8E8E1] hover:border-[#245C4A] text-xs font-sans font-semibold text-[#203B32] flex items-center gap-1.5 transition-colors shadow-subtle"
+          >
+            <Activity className="w-3.5 h-3.5 text-[#245C4A]" />
+            <span>Update Status</span>
+          </button>
+
+          <button
+            onClick={handleCopy}
+            className="p-2 rounded-xl bg-white border border-[#E8E8E1] hover:border-[#245C4A] text-[#707970] hover:text-[#203B32] transition-colors shadow-subtle"
+            title="Copy shareable link"
+          >
+            {copied ? <Check className="w-3.5 h-3.5 text-[#245C4A]" /> : <Share2 className="w-3.5 h-3.5" />}
           </button>
 
           <button
             onClick={() => window.print()}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-xs font-mono font-medium transition-all"
+            className="p-2 rounded-xl bg-white border border-[#E8E8E1] hover:border-[#245C4A] text-[#707970] hover:text-[#203B32] transition-colors shadow-subtle hidden sm:block"
+            title="Print handoff document"
           >
-            <Printer className="w-4 h-4" />
-            <span>PRINT BRIEF</span>
+            <Printer className="w-3.5 h-3.5" />
           </button>
         </div>
       </div>
 
-      {/* Hero Header Prompt Banner */}
-      <div className="p-4 rounded-xl bg-cyan-950/40 border border-cyan-500/30 text-xs font-mono text-cyan-200 flex items-center gap-3">
-        <Info className="w-5 h-5 text-cyan-400 shrink-0" />
-        <div>
-          <span className="font-bold uppercase tracking-wider text-cyan-300 block">WHAT DOES EVERY RESPONDER NEED TO KNOW RIGHT NOW?</span>
-          <span>Zero coordination latency. Information synchronized across Dispatcher, Ambulance Team, ER Triage, & Traffic Operational briefs.</span>
+      {actionNotice && (
+        <div className="p-3 bg-[#EEF4EF] border border-[#CBDACD] text-[#245C4A] text-xs font-sans rounded-xl flex items-center gap-2">
+          <CheckCircle2 className="w-4 h-4 shrink-0" />
+          <span>{actionNotice}</span>
+        </div>
+      )}
+
+      {/* 2. SUBTLE GREEN STATUS STRIP & 5-STAGE PROGRESSION */}
+      <div className="bg-[#EEF4EF] rounded-2xl border border-[#CBDACD] p-4">
+        <div className="flex items-center justify-between pb-3 mb-3 border-b border-[#CBDACD]">
+          <span className="text-[11px] font-sans font-bold uppercase tracking-wider text-[#245C4A]">
+            Response Progression Pipeline
+          </span>
+          <span className="text-xs font-mono font-bold text-[#203B32]">
+            Current: {h.status?.replace(/_/g, ' ')}
+          </span>
+        </div>
+
+        <div className="grid grid-cols-5 gap-2 text-center text-xs font-sans">
+          {STATUS_PROGRESSION.map((step, idx) => {
+            const isCompleted = idx <= activeProgressionIndex;
+            const isCurrent = idx === activeProgressionIndex;
+
+            return (
+              <div key={step.key} className="space-y-1">
+                <div className={`h-1.5 rounded-full transition-all ${
+                  isCurrent 
+                    ? 'bg-[#245C4A]' 
+                    : isCompleted 
+                    ? 'bg-[#6E9C91]' 
+                    : 'bg-[#CBDACD]'
+                }`} />
+                <span className={`text-[11px] block truncate ${
+                  isCurrent ? 'font-bold text-[#245C4A]' : isCompleted ? 'font-medium text-[#203B32]' : 'text-[#707970]'
+                }`}>
+                  {step.label}
+                </span>
+              </div>
+            );
+          })}
         </div>
       </div>
 
-      {/* Role Perspectives Filter */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-2 border-b border-resq-border/60 text-xs font-mono">
-        <span className="text-slate-400 text-[11px] mr-1">ROLE VIEW:</span>
+      {/* 3. ROLE PERSPECTIVE HUD TABS */}
+      <div className="flex items-center gap-1.5 border-b border-[#E8E8E1] pb-2 text-xs font-sans">
+        <span className="text-[#707970] text-[11px] mr-2">Perspective:</span>
         {[
-          { id: 'ALL', label: 'Unified 8-Section Brief' },
-          { id: 'RESPONDER', label: '🚑 Ambulance Crew HUD' },
-          { id: 'HOSPITAL', label: '🏥 Hospital ER Triage' },
-          { id: 'COMMAND', label: '📡 Command Dispatch' }
-        ].map((tab) => (
+          { key: 'ALL', label: 'Complete Brief' },
+          { key: 'RESPONDER', label: 'Field Responder HUD' },
+          { key: 'HOSPITAL', label: 'Hospital Trauma Desk' },
+          { key: 'COMMAND', label: 'Command Dispatch' }
+        ].map(tab => (
           <button
-            key={tab.id}
-            onClick={() => setActiveRoleView(tab.id)}
-            className={`px-3 py-1.5 rounded-lg whitespace-nowrap transition-all ${
-              activeRoleView === tab.id
-                ? 'bg-cyan-500 text-black font-bold shadow-md shadow-cyan-500/20'
-                : 'bg-slate-900 text-slate-400 hover:text-slate-200 border border-slate-800'
+            key={tab.key}
+            onClick={() => setActiveRoleView(tab.key)}
+            className={`px-3 py-1 rounded-xl transition-all ${
+              activeRoleView === tab.key
+                ? 'bg-white text-[#245C4A] font-semibold border border-[#CBDACD] shadow-subtle'
+                : 'text-[#707970] hover:text-[#203B32]'
             }`}
           >
             {tab.label}
@@ -287,377 +308,243 @@ export default function ResqHandoff() {
         ))}
       </div>
 
-      {/* Main Sections Layout */}
-      <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+      {/* 4. THE SIGNATURE 8-SECTION HANDOFF DOCUMENT */}
+      <div className="bg-white rounded-3xl border border-[#E8E8E1] p-6 sm:p-8 shadow-sheet space-y-6">
         
-        {/* Left Column: Sections 1-6 (8 cols) */}
-        <div className="md:col-span-8 space-y-6">
+        {/* Document Header with Distinctive Incident Identifier */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-5 border-b border-[#E8E8E1] gap-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="font-mono text-xs font-bold text-[#245C4A] bg-[#EEF4EF] px-2.5 py-0.5 rounded-lg border border-[#CBDACD]">
+                {h.id || h.incident_id}
+              </span>
+              <span className="text-xs text-[#707970] font-sans">
+                {h.created_at ? new Date(h.created_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : 'Live'}
+              </span>
+            </div>
+            <h2 className="font-serif text-2xl font-bold text-[#203B32] mt-1.5">
+              Live Emergency Coordination Briefing
+            </h2>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <StatusBadge status={h.status} />
+            <PriorityBadge priority={h.priority} size="md" />
+          </div>
+        </div>
+
+        {/* Section 1: Incident Summary & Caller Narrative */}
+        <div className="space-y-1.5">
+          <span className="text-xs font-sans font-semibold uppercase tracking-wider text-[#707970]">
+            1. Incident Summary &amp; Caller Narrative
+          </span>
+          <p className="text-sm text-[#203B32] p-4 bg-[#F8F7F2] rounded-2xl border border-[#E8E8E1] leading-relaxed font-sans">
+            "{h.incident_summary || h.raw_text}"
+          </p>
+        </div>
+
+        {/* Section 2: Location & Casualties Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-1">
+          <div className="p-4 bg-[#FFFFFF] rounded-2xl border border-[#E8E8E1]">
+            <span className="text-[11px] font-sans font-medium text-[#707970] block uppercase">
+              2. Exact Location
+            </span>
+            <div className="flex items-center gap-1.5 mt-1">
+              <MapPin className="w-4 h-4 text-[#245C4A] shrink-0" />
+              <span className="font-semibold text-xs text-[#203B32] truncate">{h.location}</span>
+            </div>
+          </div>
+
+          <div className="p-4 bg-[#FFFFFF] rounded-2xl border border-[#E8E8E1]">
+            <span className="text-[11px] font-sans font-medium text-[#707970] block uppercase">
+              Casualties Involved
+            </span>
+            <div className="flex items-center gap-1.5 mt-1">
+              <Users className="w-4 h-4 text-[#245C4A] shrink-0" />
+              <span className="font-semibold text-xs text-[#203B32]">{h.people_count || 3} individuals</span>
+            </div>
+          </div>
+
+          <div className="p-4 bg-[#FFFFFF] rounded-2xl border border-[#E8E8E1]">
+            <span className="text-[11px] font-sans font-medium text-[#707970] block uppercase">
+              Observed Indicators
+            </span>
+            <span className="font-semibold text-xs text-[#203B32] mt-1 block">
+              {(Array.isArray(h.injury_indicators) ? h.injury_indicators.join(', ') : 'Blunt trauma')}
+            </span>
+          </div>
+        </div>
+
+        {/* Section 3 & 4: Assigned Ambulance & Selected Hospital (Split Grid) */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
           
-          {/* SECTION 1: EMERGENCY ASSESSMENT */}
-          <div className="glass-panel p-6 rounded-2xl border-2 border-cyan-500/40 bg-gradient-to-br from-[#0c1626] to-[#080d17] relative">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-800 pb-3 mb-4 gap-2">
-              <div className="flex items-center gap-2">
-                <ShieldAlert className="w-5 h-5 text-cyan-400" />
-                <h2 className="font-mono font-bold text-base text-white tracking-wider uppercase">
-                  1. EMERGENCY ASSESSMENT (DETERMINISTIC OPERATIONAL SCORING)
-                </h2>
-              </div>
-              <span className="text-[10px] font-mono px-2.5 py-1 rounded font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 uppercase">
-                EXPLAINABLE OPERATIONAL PRIORITY
+          {/* Section 3: Assigned Ambulance */}
+          <div className="p-5 bg-[#F8F7F2] rounded-2xl border border-[#E8E8E1] space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-sans font-semibold uppercase tracking-wider text-[#245C4A]">
+                3. Assigned Ambulance Unit
+              </span>
+              <span className="font-mono text-xs font-bold text-[#203B32]">
+                {h.assigned_ambulance?.id || 'AMB-BLR-02'}
               </span>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-mono">
-              <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800 space-y-1">
-                <span className="text-[10px] text-slate-400 block uppercase">What Happened:</span>
-                <p className="font-bold text-white text-sm">{h.incidentType || 'Road Accident'}</p>
-                <p className="text-[11px] text-slate-300">Location: {h.location}</p>
-              </div>
-
-              <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800 space-y-1">
-                <span className="text-[10px] text-slate-400 block uppercase">People Affected:</span>
-                <p className="font-bold text-amber-300 text-sm">{h.peopleInvolved} Individual(s) Reported</p>
-                <p className="text-[11px] text-slate-300">Severity Level: {h.priority}</p>
-              </div>
-
-              <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800 space-y-1">
-                <span className="text-[10px] text-slate-400 block uppercase">Injury Indicators:</span>
-                <p className="font-bold text-orange-300">
-                  {Array.isArray(h.injuryIndicators) ? h.injuryIndicators.join(', ') : (h.injuryIndicators || 'Reported injuries')}
-                </p>
-              </div>
-
-              <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800 space-y-1">
-                <span className="text-[10px] text-slate-400 block uppercase">Hazards & Obstruction:</span>
-                <div className="flex items-center justify-between">
-                  <span className={`font-bold ${h.roadObstruction ? 'text-red-400' : 'text-emerald-400'}`}>
-                    {h.roadObstruction ? 'Road Obstruction Active' : 'Clear Passage'}
-                  </span>
-                  {h.fireSmoke && <span className="text-red-400 font-bold">Fire/Smoke Reported</span>}
-                </div>
-                {h.hazards && (
-                  <p className="text-[11px] text-slate-400 mt-1">
-                    {Array.isArray(h.hazards) ? h.hazards.join(', ') : h.hazards}
-                  </p>
-                )}
-              </div>
-            </div>
-
-            {/* AI Explanation Justification */}
-            {h.aiReasoning && h.aiReasoning.length > 0 && (
-              <div className="mt-4 pt-3 border-t border-slate-800/80 text-xs font-mono">
-                <span className="text-[10px] text-slate-400 uppercase font-bold block mb-1">
-                  Deterministic Priority Derivation:
-                </span>
-                <div className="flex flex-wrap gap-2">
-                  {h.aiReasoning.map((r, i) => (
-                    <span key={i} className="px-2 py-1 rounded bg-slate-900 border border-slate-800 text-cyan-300 text-[11px]">
-                      ✓ {r}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* SECTION 2: RESPONSE (AMBULANCE) */}
-          <div className="glass-panel p-6 rounded-2xl border border-cyan-500/30 bg-slate-900/90">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
-              <div className="flex items-center gap-2 text-cyan-400">
-                <Truck className="w-5 h-5" />
-                <h2 className="font-mono font-bold text-base text-white tracking-wider uppercase">
-                  2. RESPONSE (AMBULANCE)
-                </h2>
-              </div>
-              <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 border border-blue-500/40 uppercase">
-                STATUS: {h.ambulance?.status || 'EN_ROUTE'}
-              </span>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs font-mono">
-              <div>
-                <span className="text-[10px] text-slate-400 uppercase block">Assigned Unit:</span>
-                <p className="text-base font-bold text-white">{h.ambulance?.id || 'AMB-102'}</p>
-                <p className="text-slate-300 text-[11px]">{h.ambulance?.name || 'Advanced ALS Unit'}</p>
-              </div>
-
-              <div>
-                <span className="text-[10px] text-slate-400 uppercase block">Capability Rating:</span>
-                <p className="text-sm font-bold text-cyan-300">{h.ambulance?.capability || 'ALS (Advanced Life Support)'}</p>
-                <p className="text-slate-400 text-[11px]">Driver: {h.ambulance?.driver || 'Manoj Gowda'}</p>
-              </div>
-
-              <div>
-                <span className="text-[10px] text-slate-400 uppercase block">ETA to Scene:</span>
-                <p className="text-xl font-extrabold text-emerald-400">{h.ambulance?.etaMin || 7} MIN</p>
-                <p className="text-slate-400 text-[11px]">Contact: {h.ambulance?.contact || '+91-98765-43210'}</p>
-              </div>
-            </div>
-          </div>
-
-          {/* SECTION 3: HOSPITAL PRE-ALERT & INTAKE */}
-          <div className="glass-panel p-6 rounded-2xl border border-indigo-500/30 bg-slate-900/90">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
-              <div className="flex items-center gap-2 text-indigo-400">
-                <Building2 className="w-5 h-5" />
-                <h2 className="font-mono font-bold text-base text-white tracking-wider uppercase">
-                  3. DESTINATION HOSPITAL INTAKE
-                </h2>
-              </div>
-              <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 uppercase">
-                PRE-ALERT: {h.hospital?.prealertStatus || 'SENT'} ✓
-              </span>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs font-mono mb-4">
-              <div>
-                <span className="text-[10px] text-slate-400 uppercase block">Selected Hospital:</span>
-                <p className="text-base font-bold text-white truncate" title={h.hospital?.name}>
-                  {h.hospital?.name || 'City Emergency Hospital'}
-                </p>
-                <p className="text-slate-400 text-[11px]">{h.hospital?.capability || 'Level 1 Trauma'}</p>
-              </div>
-
-              <div>
-                <span className="text-[10px] text-slate-400 uppercase block">ER & ICU Capacity:</span>
-                <p className="text-sm font-bold text-indigo-300">
-                  {h.hospital?.emergencyBedsAvailable || 8} ER Beds Available
-                </p>
-                <p className="text-slate-400 text-[11px]">
-                  {h.hospital?.icuBedsAvailable || 4} ICU Beds Open
-                </p>
-              </div>
-
-              <div>
-                <span className="text-[10px] text-slate-400 uppercase block">Arrival ETA:</span>
-                <p className="text-xl font-extrabold text-emerald-400">{h.hospital?.etaMin || 12} MIN</p>
-                <p className="text-emerald-300 text-[11px]">Triage Bay Standby Active</p>
-              </div>
-            </div>
-
-            {/* Hospital Prep Checklist */}
-            {h.hospitalPreparation && (
-              <div className="pt-3 border-t border-slate-800/80 text-xs font-mono">
-                <span className="text-[10px] text-slate-400 uppercase font-bold block mb-2">Hospital Preparation Directives:</span>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {h.hospitalPreparation.map((prep, idx) => (
-                    <div key={idx} className="flex items-center gap-2 p-2 rounded bg-slate-950/80 border border-slate-800 text-slate-300">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                      <span>{prep}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* SECTION 4: ROUTE INTELLIGENCE */}
-          <div className="glass-panel p-6 rounded-2xl border border-amber-500/30 bg-slate-900/90">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
-              <div className="flex items-center gap-2 text-amber-400">
-                <Navigation className="w-5 h-5" />
-                <h2 className="font-mono font-bold text-base text-white tracking-wider uppercase">
-                  4. ROUTE RISK INTELLIGENCE
-                </h2>
-              </div>
-              <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 uppercase">
-                ROUTE LOCKED
-              </span>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs font-mono">
-              <div>
-                <span className="text-[10px] text-slate-400 uppercase block">Designated Route:</span>
-                <p className="text-base font-bold text-white">{h.route?.name || 'Route B'}</p>
-                <p className="text-slate-400 text-[11px]">Distance: {h.route?.distanceKm || 7.3} km</p>
-              </div>
-
-              <div>
-                <span className="text-[10px] text-slate-400 uppercase block">Traffic Assessment:</span>
-                <p className="text-sm font-bold text-amber-300">{h.route?.traffic || 'Moderate Traffic'}</p>
-                <p className="text-slate-400 text-[11px]">Dynamic Corridor Clearance</p>
-              </div>
-
-              <div>
-                <span className="text-[10px] text-slate-400 uppercase block">Route Risk Rating:</span>
-                <p className="text-sm font-bold text-emerald-400 uppercase">{h.route?.risk || 'LOW REPORTED RISK'}</p>
-                <p className="text-slate-400 text-[11px]">Transit ETA: {h.route?.etaMin || 12} min</p>
-              </div>
-            </div>
-          </div>
-
-          {/* SECTION 5: TRAFFIC / POLICE INFORMATION BRIEF */}
-          <div className="glass-panel p-6 rounded-2xl border border-purple-500/30 bg-slate-900/90">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
-              <div className="flex items-center gap-2 text-purple-400">
-                <Siren className="w-5 h-5" />
-                <h2 className="font-mono font-bold text-base text-white tracking-wider uppercase">
-                  5. TRAFFIC & POLICE OPERATIONAL BRIEF
-                </h2>
-              </div>
-              <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-purple-500/20 text-purple-300 border border-purple-500/40 uppercase">
-                SIMULATED BRIEF
-              </span>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-mono mb-3">
-              <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800 space-y-1">
-                <span className="text-[10px] text-slate-400 uppercase block">Corridor Location:</span>
-                <p className="font-bold text-white">{tpBrief.location}</p>
-                <span className="text-[10px] text-slate-400 uppercase block mt-2">Road Obstruction Status:</span>
-                <p className="font-bold text-amber-300">{tpBrief.roadObstruction}</p>
-              </div>
-
-              <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800 space-y-1">
-                <span className="text-[10px] text-slate-400 uppercase block">Identified Hazard:</span>
-                <p className="font-bold text-orange-300">{tpBrief.hazard}</p>
-                <span className="text-[10px] text-slate-400 uppercase block mt-2">Estimated Traffic Impact:</span>
-                <p className="font-bold text-purple-300">{tpBrief.estimatedImpact}</p>
-              </div>
-            </div>
-
-            <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800 text-xs font-mono mb-3">
-              <span className="text-[10px] text-slate-400 uppercase block font-bold mb-1">Recommended Operational Action:</span>
-              <p className="text-slate-200">{tpBrief.recommendedAction}</p>
-            </div>
-
-            <p className="text-[10px] font-mono text-slate-500 italic">
-              Note: {tpBrief.disclaimer || 'SIMULATED OPERATIONAL BRIEF (Demonstrates multi-agency record sharing without real police dispatch)'}
-            </p>
-          </div>
-
-          {/* SECTION 6: CORRIDOR MEMORY (BREETH AI) */}
-          <div className="glass-panel p-6 rounded-2xl border border-teal-500/30 bg-slate-900/90">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-800 pb-3 mb-4 gap-2">
-              <div className="flex items-center gap-2 text-teal-400">
-                <Brain className="w-5 h-5" />
-                <h2 className="font-mono font-bold text-base text-white tracking-wider uppercase">
-                  6. CORRIDOR MEMORY & HISTORICAL CONTEXT
-                </h2>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className={`text-[10px] font-mono px-2.5 py-1 rounded font-bold border uppercase ${
-                  cMemory.source && cMemory.source.includes('Breeth')
-                    ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
-                    : 'bg-amber-500/20 text-amber-300 border-amber-500/40'
-                }`}>
-                  {cMemory.source && cMemory.source.includes('Breeth') ? 'REMOTE BREETH AI API' : 'LOCAL INCIDENT MEMORY (FALLBACK)'}
-                </span>
-              </div>
-            </div>
-
-            <div className="p-4 rounded-xl bg-slate-950/80 border border-slate-800 text-xs font-mono space-y-3 mb-4">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] text-slate-400 uppercase">Target Corridor:</span>
-                <span className="text-[11px] text-teal-300 font-bold">{cMemory.corridor || 'Mysore Road Corridor'}</span>
-              </div>
-              <p className="font-bold text-slate-100 text-sm leading-relaxed">
-                "{cMemory.summary}"
+            <div>
+              <p className="font-serif font-bold text-base text-[#203B32]">
+                {h.assigned_ambulance?.name || 'LifeCare ALS Express 02'}
               </p>
-              <p className="text-[10px] text-slate-500 italic">
-                Memory Source: {cMemory.source || 'LOCAL INCIDENT MEMORY'} • Provides historical corridor context without altering medical priority scoring.
+              <span className="inline-block px-2 py-0.5 rounded text-[11px] font-semibold bg-[#EEF4EF] text-[#245C4A] border border-[#CBDACD] mt-1">
+                {h.assigned_ambulance?.capability || 'Advanced (ALS)'}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 text-xs font-sans text-[#707970] pt-2 border-t border-[#E8E8E1]">
+              <div>
+                <span className="text-[10px] block text-[#929B92]">Lead Crew</span>
+                <span className="font-medium text-[#203B32]">{h.assigned_ambulance?.driver_name || 'Officer S. Kumar'}</span>
+              </div>
+              <div>
+                <span className="text-[10px] block text-[#929B92]">Radio Contact</span>
+                <span className="font-mono text-[#245C4A]">{h.assigned_ambulance?.contact_number || '+91 98450 11202'}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Section 4: Selected Trauma Hospital */}
+          <div className="p-5 bg-[#F8F7F2] rounded-2xl border border-[#E8E8E1] space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-sans font-semibold uppercase tracking-wider text-[#203B32]">
+                4. Selected Trauma Center
+              </span>
+              <span className="text-xs font-semibold px-2 py-0.5 rounded bg-[#EEF4EF] text-[#245C4A] border border-[#CBDACD]">
+                Pre-Alert Active
+              </span>
+            </div>
+
+            <div>
+              <p className="font-serif font-bold text-base text-[#203B32]">
+                {h.selected_hospital?.name || 'Fortis Hospital - Bannerghatta'}
+              </p>
+              <p className="text-xs text-[#707970] truncate mt-0.5">
+                {h.selected_hospital?.address || '154/9, Bannerghatta Road, Bengaluru'}
               </p>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-mono mb-4">
-              <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800 space-y-1.5">
-                <div className="flex items-center gap-1.5 text-amber-400 font-bold text-[11px] uppercase">
-                  <History className="w-3.5 h-3.5" />
-                  <span>Recurring Corridor Hazards</span>
-                </div>
-                <div className="space-y-1">
-                  {(cMemory.recurringHazards || []).map((hzd, idx) => (
-                    <div key={idx} className="flex items-center gap-2 text-slate-300">
-                      <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
-                      <span>{hzd}</span>
-                    </div>
-                  ))}
-                </div>
+            <div className="grid grid-cols-2 gap-2 text-xs font-sans text-[#707970] pt-2 border-t border-[#E8E8E1]">
+              <div>
+                <span className="text-[10px] block text-[#929B92]">ER Beds Ready</span>
+                <span className="font-mono font-bold text-[#245C4A]">{h.selected_hospital?.emergency_beds_available || 8} Available</span>
               </div>
-
-              <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800 space-y-1.5">
-                <div className="flex items-center gap-1.5 text-cyan-400 font-bold text-[11px] uppercase">
-                  <Info className="w-3.5 h-3.5" />
-                  <span>Historical Observations</span>
-                </div>
-                <div className="space-y-1">
-                  {(cMemory.historicalObservations || []).map((obs, idx) => (
-                    <div key={idx} className="flex items-center gap-2 text-slate-300">
-                      <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
-                      <span>{obs}</span>
-                    </div>
-                  ))}
-                </div>
+              <div>
+                <span className="text-[10px] block text-[#929B92]">Intake Hotline</span>
+                <span className="font-mono text-[#203B32]">{h.selected_hospital?.contact_phone || '+91 80 6621 4444'}</span>
               </div>
             </div>
-
-            {/* Relevant Previous Incidents List */}
-            {cMemory.recentMemories && cMemory.recentMemories.length > 0 && (
-              <div className="pt-3 border-t border-slate-800 text-xs font-mono">
-                <span className="text-[10px] text-slate-400 uppercase font-bold block mb-2">Relevant Previous Incident Memories:</span>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {cMemory.recentMemories.map((m, idx) => (
-                    <div key={idx} className="p-2 rounded bg-slate-950/60 border border-slate-800 text-slate-300 flex items-center justify-between">
-                      <div>
-                        <span className="text-cyan-400 font-bold text-[11px] block">{m.incidentId}</span>
-                        <span className="text-[10px] text-slate-400">{m.location}</span>
-                      </div>
-                      <span className="px-1.5 py-0.5 rounded bg-red-500/20 text-red-300 text-[10px] font-bold">{m.severity}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
 
         </div>
 
-        {/* Right Column: Section 7 - Live Timeline (4 cols) */}
-        <div className="md:col-span-4 space-y-4">
-          <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-            <span className="text-xs font-mono font-bold uppercase tracking-wider text-slate-200 flex items-center gap-1.5">
-              <Clock className="w-4 h-4 text-cyan-400" />
-              <span>7. LIVE TIMELINE</span>
-            </span>
-            <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
+        {/* Section 5 & 6: Recommended Corridor & Estimated Times */}
+        <div className="p-4 bg-[#EEF4EF] rounded-2xl border border-[#CBDACD] space-y-2">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div>
+              <span className="text-xs font-bold text-[#245C4A] uppercase tracking-wider block">
+                5 &amp; 6. Recommended Corridor &amp; ETA Telemetry
+              </span>
+              <p className="text-xs text-[#203B32] font-medium mt-0.5">
+                {h.route_name || 'Route B — Outer Ring Road & Hosur Corridor (Recommended)'}
+              </p>
+            </div>
+            <div className="flex items-center gap-4 text-xs font-mono font-bold text-[#245C4A]">
+              <span>ETA: {h.route_eta_min || 14} min</span>
+              <span>Distance: {h.route_distance_km || 7.2} km</span>
+            </div>
           </div>
+        </div>
 
-          <p className="text-[11px] font-mono text-slate-400">
-            Real-time event logging across witness report, AI scoring, Breeth memory search, ambulance assignment, hospital pre-alert, & route locking.
-          </p>
-
-          <TimelineView events={h.timeline || []} />
+        {/* Section 7 & 8: Response Timeline */}
+        <div className="space-y-3 pt-2">
+          <span className="text-xs font-sans font-semibold uppercase tracking-wider text-[#707970]">
+            7 &amp; 8. Chronological Event Timeline
+          </span>
+          <TimelineView events={h.timeline || []} layout="vertical" />
         </div>
 
       </div>
 
-      {/* SECTION 8: QR CODE MODAL */}
+      {/* QR CODE MODAL FOR HOSPITAL INTAKE */}
       {qrModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-          <div className="bg-resq-panel border border-cyan-500/40 rounded-2xl max-w-sm w-full p-6 text-center relative shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-3xl border border-[#E8E8E1] p-6 max-w-sm w-full shadow-dropdown text-center space-y-4">
+            <div className="flex items-center justify-between pb-2 border-b border-[#E8E8E1]">
+              <span className="font-serif font-bold text-base text-[#203B32]">
+                Digital Handoff QR Pass
+              </span>
+              <button onClick={() => setQrModal(false)} className="text-[#707970] hover:text-[#203B32]">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <p className="text-xs text-[#707970] font-sans">
+              Scan at emergency triage intake desk to synchronize patient telemetry directly.
+            </p>
+
+            {qrUrl && (
+              <div className="flex justify-center p-3 bg-[#F8F7F2] rounded-2xl border border-[#E8E8E1]">
+                <img src={qrUrl} alt="Handoff QR" className="w-56 h-56 rounded-xl" />
+              </div>
+            )}
+
+            <div className="text-[11px] font-mono text-[#707970]">
+              Incident ID: <strong className="text-[#203B32]">{incidentId}</strong>
+            </div>
+
             <button
               onClick={() => setQrModal(false)}
-              className="absolute top-4 right-4 text-slate-400 hover:text-white"
+              className="w-full py-2.5 rounded-xl bg-[#245C4A] text-white text-xs font-semibold"
             >
-              <X className="w-5 h-5" />
+              Close QR Pass
             </button>
-            <QrCode className="w-10 h-10 text-cyan-400 mx-auto mb-2" />
-            <h3 className="text-lg font-bold font-mono text-white">RESQ HANDOFF QR</h3>
-            <p className="text-xs text-slate-400 mb-4">
-              Scan to open this single synchronized emergency record on responder or hospital tablets.
+          </div>
+        </div>
+      )}
+
+      {/* STATUS UPDATE MODAL */}
+      {statusModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-3xl border border-[#E8E8E1] p-6 max-w-md w-full shadow-dropdown space-y-4">
+            <div className="flex items-center justify-between pb-2 border-b border-[#E8E8E1]">
+              <span className="font-serif font-bold text-base text-[#203B32]">
+                Update Response Progression
+              </span>
+              <button onClick={() => setStatusModal(false)} className="text-[#707970] hover:text-[#203B32]">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <p className="text-xs text-[#707970] font-sans">
+              Advance the coordinated status across all connected ambulance and hospital displays.
             </p>
-            <div className="bg-white p-4 rounded-xl inline-block shadow-inner mb-4">
-              <img src={qrUrl} alt="Handoff QR" className="w-48 h-48 mx-auto" />
+
+            <div className="space-y-2">
+              {[
+                { status: 'ASSESSED', label: 'Assessed — Triage Scoring Locked' },
+                { status: 'ASSIGNED', label: 'Assigned — Ambulance Dispatched' },
+                { status: 'HOSPITAL_ALERTED', label: 'Hospital Alerted — Pre-Alert Sent' },
+                { status: 'AMBULANCE_EN_ROUTE', label: 'Ambulance En Route — In Transit' },
+                { status: 'ON_SCENE', label: 'On Scene — Paramedics Arrived' }
+              ].map(opt => (
+                <button
+                  key={opt.status}
+                  onClick={() => handleUpdateStatus(opt.status)}
+                  disabled={updatingStatus}
+                  className="w-full p-3 text-left rounded-xl border border-[#E8E8E1] hover:border-[#245C4A] hover:bg-[#EEF4EF] text-xs font-sans text-[#203B32] transition-colors flex items-center justify-between"
+                >
+                  <span>{opt.label}</span>
+                  {h.status === opt.status && <Check className="w-3.5 h-3.5 text-[#245C4A]" />}
+                </button>
+              ))}
             </div>
-            <div className="text-[11px] font-mono text-cyan-300 bg-slate-900 py-1.5 px-3 rounded border border-slate-800 mb-4 break-all">
-              {window.location.href}
-            </div>
-            <button
-              onClick={handleCopyLink}
-              className="w-full py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-mono text-slate-200 border border-slate-700 transition-colors"
-            >
-              {copied ? 'Copied to Clipboard!' : 'Copy Direct Link'}
-            </button>
           </div>
         </div>
       )}
@@ -665,4 +552,3 @@ export default function ResqHandoff() {
     </div>
   );
 }
-

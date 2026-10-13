@@ -1,200 +1,294 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { 
   AlertTriangle, 
-  Radio, 
   ArrowRight, 
   Truck, 
   Building2, 
   Navigation, 
   FileText, 
-  BarChart3, 
-  ShieldAlert, 
+  Radio, 
   CheckCircle2, 
-  Zap,
-  Activity
+  PhoneCall,
+  Activity,
+  ShieldCheck,
+  Clock,
+  Layers,
+  ChevronRight
 } from 'lucide-react';
-import LiveHandoffCard from '../components/LiveHandoffCard';
+import MapView from '../components/MapView';
+import { SimulationBadge } from '../components/StatusBadge';
+import { api } from '../services/api';
 
 export default function Home() {
-  const workflowSteps = [
-    { num: '01', title: 'REPORT', desc: 'Citizen voice, text or scene image submission' },
-    { num: '02', title: 'ANALYZE', desc: 'AI entity & casualty extraction with 0-6+ scoring' },
-    { num: '03', title: 'MATCH', desc: 'Multi-factor ALS/BLS fleet & trauma intake ranking' },
-    { num: '04', title: 'ROUTE', desc: 'Risk-weighted corridor selection (Route B vs A)' },
-    { num: '05', title: 'HANDOFF', desc: 'One live synchronized emergency brief generated' },
-    { num: '06', title: 'RESPOND', desc: 'Ambulance en route with pre-alerted ER intake' }
-  ];
+  const [dashboardData, setDashboardData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [routes, setRoutes] = useState([]);
 
-  const capabilities = [
-    {
-      icon: ShieldAlert,
-      title: 'AI Incident Intelligence',
-      desc: 'Instant NLP token parsing extracting casualties, entrapment, and road obstructions with transparent point scoring.'
-    },
-    {
-      icon: Truck,
-      title: 'Smart Ambulance Matching',
-      desc: 'Evaluates crew status, Advanced (ALS) vs Basic (BLS) capability, and transit time rather than raw geographic proximity.'
-    },
-    {
-      icon: Building2,
-      title: 'Hospital Matching & Pre-Alert',
-      desc: 'Ranks trauma networks by live emergency bed and ICU availability, dispatching automated pre-alerts before arrival.'
-    },
-    {
-      icon: Navigation,
-      title: 'Emergency Route Intelligence',
-      desc: 'Dynamic risk scoring balances traffic choke-points and incident hotspots, recommending safer transit corridors.'
-    },
-    {
-      icon: FileText,
-      title: 'Live RESQ HANDOFF',
-      desc: 'The signature hero record: unified live telemetry brief shared in real-time across ambulances, ERs, and command staff.'
-    },
-    {
-      icon: BarChart3,
-      title: 'Predictive Readiness',
-      desc: 'Corridor demand analytics analyzing peak hours and accident clusters to recommend proactive fleet staging.'
+  useEffect(() => {
+    async function loadData() {
+      try {
+        const data = await api.getDashboardData();
+        if (data) {
+          setDashboardData(data);
+          const firstInc = data.activeIncidents?.[0];
+          if (firstInc?.id) {
+            const routeRes = await api.calculateRoutes(firstInc.id);
+            if (routeRes?.routes) setRoutes(routeRes.routes);
+          }
+        }
+      } catch (err) {
+        console.warn('Failed loading dashboard overview telemetry:', err);
+      } finally {
+        setLoading(false);
+      }
     }
-  ];
+    loadData();
+  }, []);
+
+  const metrics = dashboardData?.metrics || {
+    activeIncidents: 1,
+    ambulancesAvailable: 10,
+    ambulancesEnRoute: 0,
+    hospitalsAvailable: 5
+  };
+
+  const activeIncidents = dashboardData?.activeIncidents || [];
+  const ambulances = dashboardData?.ambulances || [];
+  const hospitals = dashboardData?.hospitals || [];
 
   return (
-    <div className="space-y-16 pb-24">
-      
-      {/* Hero Section */}
-      <section className="relative overflow-hidden pt-12 pb-8">
-        {/* Glow ambient background */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[350px] bg-gradient-to-tr from-cyan-600/15 via-red-500/10 to-transparent blur-3xl pointer-events-none" />
-
-        <div className="max-w-4xl mx-auto text-center relative z-10 px-4">
+    <div className="min-h-screen bg-[#F8F7F2] text-[#203B32] pb-24">
+      {/* 1. WELCOME AREA - SPLIT EDITORIAL COMPOSITION */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-10 sm:pt-14 pb-12">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
           
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-cyan-500/40 bg-cyan-950/40 text-cyan-300 text-xs font-mono font-medium mb-6 shadow-sm">
-            <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
-            BHARAT EMERGENCY RESPONSE INFRASTRUCTURE
-          </div>
-
-          <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tight text-white mb-4">
-            RESQ<span className="text-resq-accent">NET</span>
-          </h1>
-
-          <p className="text-xl sm:text-2xl font-medium text-slate-200 mb-4 tracking-wide">
-            AI-Powered Road Accident Response &amp; Coordination Platform
-          </p>
-
-          <p className="text-base sm:text-lg text-slate-400 max-w-2xl mx-auto mb-8 font-light italic">
-            “From accident detection to coordinated response — faster, smarter, safer.”
-          </p>
-
-          {/* Primary Action CTAs */}
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-10">
-            <Link
-              to="/report"
-              className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-gradient-to-r from-red-600 via-red-500 to-orange-500 hover:from-red-500 hover:to-orange-400 text-white font-bold text-sm tracking-wider shadow-lg shadow-red-500/25 transition-all hover:scale-105 active:scale-95"
-            >
-              <AlertTriangle className="w-4 h-4 fill-current" />
-              <span>REPORT EMERGENCY</span>
-            </Link>
-
-            <Link
-              to="/command-center"
-              className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-resq-panel hover:bg-slate-800 text-cyan-300 border border-cyan-500/40 font-bold text-sm tracking-wider shadow-lg transition-all hover:border-cyan-400"
-            >
-              <Radio className="w-4 h-4 text-cyan-400" />
-              <span>OPEN COMMAND CENTER</span>
-            </Link>
-          </div>
-
-          {/* Operational Disclaimer */}
-          <p className="text-[11px] text-slate-500 max-w-xl mx-auto font-mono">
-            RESQNET is an emergency coordination and decision support platform. Operational priority assessments provide decision support and do not replace trained emergency medical professionals.
-          </p>
-        </div>
-      </section>
-
-      {/* Signature Hero Showcase: RESQ HANDOFF */}
-      <section className="max-w-4xl mx-auto px-4">
-        <div className="text-center mb-6">
-          <div className="inline-flex items-center gap-2 text-xs font-mono font-bold tracking-widest text-cyan-400 uppercase">
-            <Zap className="w-3.5 h-3.5" />
-            THE HERO INNOVATION
-          </div>
-          <h2 className="text-2xl sm:text-3xl font-extrabold text-white mt-1">
-            RESQ HANDOFF — “One Live Emergency Brief”
-          </h2>
-          <p className="text-sm text-slate-400 mt-2 max-w-xl mx-auto">
-            Eliminates multi-agency telephone delays by synchronizing telemetry between ambulance crew, trauma center triage, and command dispatch.
-          </p>
-        </div>
-
-        <LiveHandoffCard incidentId="RSQ-2026-001" />
-      </section>
-
-      {/* Visual Workflow: REPORT -> RESPOND */}
-      <section className="max-w-6xl mx-auto px-4">
-        <div className="text-center mb-8">
-          <span className="text-xs font-mono text-slate-400 uppercase tracking-wider">
-            END-TO-END COORDINATION LIFECYCLE
-          </span>
-          <h2 className="text-2xl font-bold text-white mt-1">
-            How RESQNET Accelerates the Golden Hour
-          </h2>
-        </div>
-
-        <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
-          {workflowSteps.map((step, idx) => (
-            <div
-              key={step.num}
-              className="glass-card p-4 rounded-xl border border-resq-border/70 relative hover:border-cyan-500/50 transition-all text-center flex flex-col justify-between"
-            >
-              <div className="text-[10px] font-mono text-cyan-400 font-bold mb-1">
-                {step.num}
-              </div>
-              <h3 className="text-sm font-bold text-white tracking-wider mb-2">
-                {step.title}
-              </h3>
-              <p className="text-[11px] text-slate-400 leading-tight">
-                {step.desc}
-              </p>
+          {/* Left Column: Editorial Headline & Actions */}
+          <div className="lg:col-span-6 space-y-6">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-[#CBDACD] bg-[#EEF4EF] text-[#245C4A] text-xs font-sans font-medium">
+              <span className="w-2 h-2 rounded-full bg-[#245C4A]" />
+              Bharat Emergency Response Network
             </div>
-          ))}
-        </div>
-      </section>
 
-      {/* Capabilities Grid */}
-      <section className="max-w-6xl mx-auto px-4">
-        <div className="text-center mb-8">
-          <span className="text-xs font-mono text-slate-400 uppercase tracking-wider">
-            COMPREHENSIVE EMERGENCY STACK
-          </span>
-          <h2 className="text-2xl font-bold text-white mt-1">
-            Core Capabilities Built for Indian Corridors
-          </h2>
-        </div>
+            <h1 className="font-serif text-4xl sm:text-5xl lg:text-6xl font-medium tracking-tight text-[#203B32] leading-[1.08]">
+              Every second matters.<br />
+              <span className="italic text-[#245C4A]">Every response connects.</span>
+            </h1>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {capabilities.map((c, i) => {
-            const Icon = c.icon;
-            return (
-              <div
-                key={i}
-                className="glass-panel p-5 rounded-xl border border-resq-border/80 hover:border-cyan-500/30 transition-all group"
+            <p className="text-base sm:text-lg text-[#707970] max-w-xl font-sans leading-relaxed">
+              One coordinated response, from the first report to hospital arrival. Connecting emergency intake, incident assessment, ambulances, hospitals, and transit routes in real time.
+            </p>
+
+            <div className="flex flex-wrap items-center gap-3 pt-2">
+              <Link
+                to="/report"
+                className="inline-flex items-center gap-2 px-6 py-3.5 rounded-xl bg-[#E66B55] hover:bg-[#D45943] text-white text-sm font-sans font-semibold shadow-sm transition-all hover:translate-y-[-1px] active:translate-y-[0px]"
               >
-                <div className="p-2.5 rounded-lg bg-slate-800/80 border border-slate-700/60 w-fit text-cyan-400 mb-3 group-hover:scale-105 transition-transform">
-                  <Icon className="w-5 h-5" />
+                <PhoneCall className="w-4 h-4" />
+                <span>Report an Emergency</span>
+              </Link>
+
+              <Link
+                to="/command-center"
+                className="inline-flex items-center gap-2 px-6 py-3.5 rounded-xl bg-white hover:bg-[#F4F7F4] text-[#203B32] border border-[#E8E8E1] text-sm font-sans font-semibold shadow-subtle transition-all hover:border-[#CBDACD]"
+              >
+                <Radio className="w-4 h-4 text-[#245C4A]" />
+                <span>Open Command Center</span>
+              </Link>
+            </div>
+
+            <div className="pt-2 text-xs text-[#707970] font-sans flex items-center gap-4">
+              <span className="flex items-center gap-1.5">
+                <CheckCircle2 className="w-3.5 h-3.5 text-[#245C4A]" />
+                Deterministic Scoring
+              </span>
+              <span className="flex items-center gap-1.5">
+                <CheckCircle2 className="w-3.5 h-3.5 text-[#245C4A]" />
+                Corridor Memory
+              </span>
+              <span className="flex items-center gap-1.5">
+                <CheckCircle2 className="w-3.5 h-3.5 text-[#245C4A]" />
+                Zero Chatbot Friction
+              </span>
+            </div>
+          </div>
+
+          {/* Right Column: Interactive Coordination Visual Map */}
+          <div className="lg:col-span-6">
+            <div className="bg-white p-3 rounded-3xl border border-[#E8E8E1] shadow-sheet relative">
+              <div className="flex items-center justify-between px-3 py-2 border-b border-[#E8E8E1] mb-3">
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#E66B55]" />
+                  <span className="font-serif font-semibold text-sm text-[#203B32]">
+                    Live Coordination Spatial Overview
+                  </span>
                 </div>
-                <h3 className="font-bold text-base text-white mb-1.5">
-                  {c.title}
-                </h3>
-                <p className="text-xs text-slate-400 leading-relaxed">
-                  {c.desc}
-                </p>
+                <span className="text-[11px] font-mono text-[#707970] bg-[#F8F7F2] px-2 py-0.5 rounded border border-[#E8E8E1]">
+                  Bengaluru Corridor
+                </span>
               </div>
-            );
-          })}
+
+              <div className="h-[360px] sm:h-[400px] rounded-2xl overflow-hidden relative border border-[#E8E8E1]">
+                <MapView
+                  incidents={activeIncidents}
+                  ambulances={ambulances}
+                  hospitals={hospitals}
+                  routes={routes}
+                  height="100%"
+                />
+              </div>
+
+              <div className="mt-3 px-3 py-1.5 flex items-center justify-between text-xs font-sans text-[#707970]">
+                <span>Showing incident, ambulance, hospital &amp; Route B</span>
+                <Link to="/map" className="text-[#245C4A] font-semibold hover:underline flex items-center gap-1">
+                  Full Spatial Map <ChevronRight className="w-3.5 h-3.5" />
+                </Link>
+              </div>
+            </div>
+          </div>
+
         </div>
       </section>
 
+      {/* 2. COMPACT OPERATIONAL STATUS STRIP */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-14">
+        <div className="bg-white rounded-2xl border border-[#E8E8E1] p-5 shadow-subtle">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between pb-4 mb-4 border-b border-[#E8E8E1] gap-2">
+            <div className="flex items-center gap-2">
+              <Activity className="w-4 h-4 text-[#245C4A]" />
+              <h2 className="font-serif text-sm font-semibold text-[#203B32]">
+                Active Operational Network State
+              </h2>
+            </div>
+            <div className="flex items-center gap-2">
+              <SimulationBadge />
+              <span className="text-[11px] text-[#707970] font-sans">
+                Real-time SQLite database synchronization
+              </span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 divide-y sm:divide-y-0 sm:divide-x divide-[#E8E8E1]">
+            
+            {/* Metric 1 */}
+            <div className="pt-2 sm:pt-0 sm:px-4 first:pl-0">
+              <span className="text-[11px] font-sans font-medium uppercase tracking-wider text-[#707970] block">
+                Active Incidents
+              </span>
+              <div className="flex items-baseline gap-2 mt-1">
+                <span className="text-3xl font-serif font-bold text-[#E66B55]">
+                  {metrics.activeIncidents}
+                </span>
+                <span className="text-xs font-sans text-[#707970]">corridor cases</span>
+              </div>
+            </div>
+
+            {/* Metric 2 */}
+            <div className="pt-2 sm:pt-0 sm:px-4">
+              <span className="text-[11px] font-sans font-medium uppercase tracking-wider text-[#707970] block">
+                Ambulances Available
+              </span>
+              <div className="flex items-baseline gap-2 mt-1">
+                <span className="text-3xl font-serif font-bold text-[#245C4A]">
+                  {metrics.ambulancesAvailable}
+                </span>
+                <span className="text-xs font-sans text-[#707970]">ALS / BLS units</span>
+              </div>
+            </div>
+
+            {/* Metric 3 */}
+            <div className="pt-2 sm:pt-0 sm:px-4">
+              <span className="text-[11px] font-sans font-medium uppercase tracking-wider text-[#707970] block">
+                Responses in Progress
+              </span>
+              <div className="flex items-baseline gap-2 mt-1">
+                <span className="text-3xl font-serif font-bold text-[#E7B65C]">
+                  {metrics.ambulancesEnRoute || 0}
+                </span>
+                <span className="text-xs font-sans text-[#707970]">dispatched en route</span>
+              </div>
+            </div>
+
+            {/* Metric 4 */}
+            <div className="pt-2 sm:pt-0 sm:px-4">
+              <span className="text-[11px] font-sans font-medium uppercase tracking-wider text-[#707970] block">
+                Hospitals Available
+              </span>
+              <div className="flex items-baseline gap-2 mt-1">
+                <span className="text-3xl font-serif font-bold text-[#203B32]">
+                  {metrics.hospitalsAvailable}
+                </span>
+                <span className="text-xs font-sans text-[#707970]">trauma facilities</span>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+      {/* 3. COORDINATION ARCHITECTURE - THE COMPLETE LOOP */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="mb-6 flex items-center justify-between">
+          <div>
+            <h2 className="font-serif text-2xl font-medium text-[#203B32]">
+              The Coordinated Emergency Sequence
+            </h2>
+            <p className="text-sm text-[#707970] font-sans mt-0.5">
+              Every stage communicates with the next. No fragmented phone calls, no lost information.
+            </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          {/* Card 1: Intake & Intelligence */}
+          <div className="bg-white p-6 rounded-2xl border border-[#E8E8E1] shadow-subtle hover:border-[#CBDACD] transition-colors">
+            <div className="w-10 h-10 rounded-xl bg-[#FCECE9] text-[#B94430] flex items-center justify-center mb-4">
+              <PhoneCall className="w-5 h-5" />
+            </div>
+            <h3 className="font-serif text-lg font-semibold text-[#203B32] mb-1.5">
+              1. Intake &amp; Point-Based Scoring
+            </h3>
+            <p className="text-xs text-[#707970] leading-relaxed font-sans mb-4">
+              Voice-enabled citizen reporting with ElevenLabs transcription and deterministic 0–6+ priority scoring for instant, transparent classification.
+            </p>
+            <Link to="/report" className="text-xs font-semibold text-[#245C4A] hover:underline flex items-center gap-1 font-sans">
+              Open Intake Console <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+
+          {/* Card 2: Resource Matching */}
+          <div className="bg-white p-6 rounded-2xl border border-[#E8E8E1] shadow-subtle hover:border-[#CBDACD] transition-colors">
+            <div className="w-10 h-10 rounded-xl bg-[#EEF4EF] text-[#245C4A] flex items-center justify-center mb-4">
+              <Truck className="w-5 h-5" />
+            </div>
+            <h3 className="font-serif text-lg font-semibold text-[#203B32] mb-1.5">
+              2. Fleet &amp; Trauma Coordination
+            </h3>
+            <p className="text-xs text-[#707970] leading-relaxed font-sans mb-4">
+              Simultaneous ALS/BLS fleet matching, risk-weighted corridor routing (Route B vs A), and automated ER/ICU trauma hospital pre-alerts.
+            </p>
+            <Link to="/ambulances" className="text-xs font-semibold text-[#245C4A] hover:underline flex items-center gap-1 font-sans">
+              View Fleet Operations <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+
+          {/* Card 3: RESQ Handoff */}
+          <div className="bg-white p-6 rounded-2xl border border-[#E8E8E1] shadow-subtle hover:border-[#CBDACD] transition-colors">
+            <div className="w-10 h-10 rounded-xl bg-[#EEF4EF] text-[#245C4A] flex items-center justify-center mb-4">
+              <FileText className="w-5 h-5" />
+            </div>
+            <h3 className="font-serif text-lg font-semibold text-[#203B32] mb-1.5">
+              3. Synchronized RESQ Handoff
+            </h3>
+            <p className="text-xs text-[#707970] leading-relaxed font-sans mb-4">
+              One live, continuously updated emergency brief shared synchronously between dispatchers, ambulance paramedics, and trauma teams.
+            </p>
+            <Link to="/handoff" className="text-xs font-semibold text-[#245C4A] hover:underline flex items-center gap-1 font-sans">
+              View Live Briefing <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+        </div>
+      </section>
     </div>
   );
 }

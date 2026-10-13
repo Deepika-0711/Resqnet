@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Play, Pause, RotateCcw, ChevronRight, CheckCircle2, Radio, Activity } from 'lucide-react';
+import { Play, Pause, RotateCcw, ChevronRight, CheckCircle2, Activity, ChevronUp, Minimize2, Maximize2 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { api } from '../services/api';
 
@@ -21,6 +21,7 @@ export default function DemoRunner({ onStepExecuted }) {
   const [isRunning, setIsRunning] = useState(false);
   const [statusMessage, setStatusMessage] = useState('System active & ready for response scenario.');
   const [loading, setLoading] = useState(false);
+  const [isMinimized, setIsMinimized] = useState(false);
 
   // Auto-runner interval
   useEffect(() => {
@@ -89,27 +90,43 @@ export default function DemoRunner({ onStepExecuted }) {
 
   const progressPct = Math.round((currentStep / 10) * 100);
 
+  // Minimized Pill View
+  if (isMinimized) {
+    return (
+      <div className="fixed bottom-4 right-6 z-40">
+        <button
+          onClick={() => setIsMinimized(false)}
+          className="flex items-center gap-2 px-3.5 py-2 rounded-2xl bg-white border border-[#CBDACD] text-xs font-sans font-semibold text-[#203B32] shadow-sheet hover:border-[#245C4A] transition-all"
+        >
+          <span className="w-2 h-2 rounded-full bg-[#245C4A]" />
+          <span>Demo Controller ({currentStep}/10)</span>
+          <ChevronUp className="w-4 h-4 text-[#707970]" />
+        </button>
+      </div>
+    );
+  }
+
   return (
-    <div className="fixed bottom-3 left-1/2 -translate-x-1/2 z-40 w-[95%] max-w-4xl">
-      <div className="glass-panel border-2 border-cyan-500/50 rounded-2xl p-3 sm:p-4 shadow-2xl shadow-cyan-950/60 text-white">
+    <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 w-[95%] max-w-4xl transition-all">
+      <div className="bg-white/95 backdrop-blur-md border border-[#CBDACD] rounded-3xl p-3.5 sm:p-4 shadow-dropdown text-[#203B32]">
         
         {/* Top Control Bar */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mb-2.5">
           
           <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-xl bg-gradient-to-tr from-red-600 to-orange-500 text-white shadow-md shadow-red-500/30">
-              <Activity className="w-4 h-4 animate-spin" />
+            <div className="p-2 rounded-xl bg-[#EEF4EF] text-[#245C4A] border border-[#CBDACD] shrink-0">
+              <Activity className="w-4 h-4" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-xs font-mono font-bold tracking-wider text-cyan-300">
-                  LIVE RESPONSE WORKFLOW CONTROLLER
+                <span className="text-xs font-sans font-bold tracking-tight text-[#203B32]">
+                  Live Response Scenario Controller
                 </span>
-                <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-cyan-950 border border-cyan-700 text-cyan-400">
-                  Sequence {currentStep}/10
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-[#EEF4EF] border border-[#CBDACD] text-[#245C4A] font-bold">
+                  Step {currentStep} of 10
                 </span>
               </div>
-              <p className="text-xs text-slate-300 font-medium truncate max-w-md">
+              <p className="text-xs text-[#707970] font-sans truncate max-w-md">
                 {statusMessage}
               </p>
             </div>
@@ -120,10 +137,10 @@ export default function DemoRunner({ onStepExecuted }) {
             {isRunning ? (
               <button
                 onClick={() => setIsRunning(false)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/40 text-xs font-bold font-mono hover:bg-amber-500/30 transition-all"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#FCF7ED] text-[#9E6F18] border border-[#F4DCAD] text-xs font-semibold hover:bg-[#FCF5E6] transition-all"
               >
                 <Pause className="w-3.5 h-3.5 fill-current" />
-                <span>PAUSE</span>
+                <span>Pause</span>
               </button>
             ) : (
               <button
@@ -135,10 +152,10 @@ export default function DemoRunner({ onStepExecuted }) {
                   }
                 }}
                 disabled={loading}
-                className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-500 hover:to-orange-500 text-white text-xs font-bold font-mono shadow-md shadow-red-600/30 transition-all hover:scale-105 active:scale-95"
+                className="flex items-center gap-1.5 px-4 py-1.5 rounded-xl bg-[#245C4A] hover:bg-[#1D4A3B] text-white text-xs font-semibold shadow-sm transition-all active:scale-95"
               >
                 <Play className="w-3.5 h-3.5 fill-current" />
-                <span>{currentStep >= 10 ? 'RESTART SCENARIO' : 'RUN RESPONSE SCENARIO'}</span>
+                <span>{currentStep >= 10 ? 'Restart Scenario' : 'Run Scenario'}</span>
               </button>
             )}
 
@@ -148,7 +165,7 @@ export default function DemoRunner({ onStepExecuted }) {
                 if (currentStep < 10) executeStep(currentStep + 1);
               }}
               disabled={loading || isRunning || currentStep >= 10}
-              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-mono font-medium disabled:opacity-40"
+              className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-[#F8F7F2] hover:bg-[#EEF4EF] text-[#203B32] border border-[#E8E8E1] text-xs font-semibold disabled:opacity-40"
               title="Next Step"
             >
               <span>Next</span>
@@ -159,10 +176,19 @@ export default function DemoRunner({ onStepExecuted }) {
             <button
               onClick={handleReset}
               disabled={loading}
-              className="p-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-white border border-slate-700 transition-colors"
+              className="p-2 rounded-xl bg-[#F8F7F2] hover:bg-[#EEF4EF] text-[#707970] hover:text-[#203B32] border border-[#E8E8E1] transition-colors"
               title="Reset Operational Scenario"
             >
               <RotateCcw className="w-3.5 h-3.5" />
+            </button>
+
+            {/* Minimize */}
+            <button
+              onClick={() => setIsMinimized(true)}
+              className="p-2 rounded-xl bg-[#F8F7F2] hover:bg-[#EEF4EF] text-[#707970] hover:text-[#203B32] border border-[#E8E8E1] transition-colors ml-1"
+              title="Minimize Controller"
+            >
+              <Minimize2 className="w-3.5 h-3.5" />
             </button>
           </div>
 
@@ -170,24 +196,24 @@ export default function DemoRunner({ onStepExecuted }) {
 
         {/* Progress Bar & Mini Steps */}
         <div className="space-y-1.5">
-          <div className="w-full bg-slate-900 rounded-full h-1.5 overflow-hidden border border-slate-800">
+          <div className="w-full bg-[#F8F7F2] rounded-full h-1.5 overflow-hidden border border-[#E8E8E1]">
             <div
-              className="bg-gradient-to-r from-cyan-500 via-blue-500 to-emerald-400 h-full transition-all duration-500"
+              className="bg-[#245C4A] h-full transition-all duration-500 rounded-full"
               style={{ width: `${progressPct}%` }}
             />
           </div>
 
-          <div className="hidden md:grid grid-cols-10 gap-1 text-[9px] font-mono text-center pt-0.5">
+          <div className="hidden md:grid grid-cols-10 gap-1 text-[10px] font-mono text-center pt-0.5">
             {STEPS.map((s) => (
               <button
                 key={s.step}
                 onClick={() => executeStep(s.step)}
                 className={`py-0.5 rounded truncate px-1 transition-colors ${
                   s.step === currentStep 
-                    ? 'bg-cyan-500 text-black font-bold' 
+                    ? 'bg-[#245C4A] text-white font-bold' 
                     : s.step < currentStep 
-                    ? 'text-cyan-400 bg-cyan-950/40' 
-                    : 'text-slate-500 hover:text-slate-400'
+                    ? 'text-[#245C4A] bg-[#EEF4EF]' 
+                    : 'text-[#707970] hover:text-[#203B32]'
                 }`}
               >
                 {s.label.split(':')[0]}

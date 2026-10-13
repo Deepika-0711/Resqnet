@@ -2,28 +2,30 @@ import React, { useEffect } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
 import L from 'leaflet';
 
-// Custom SVG Icons without broken external PNG dependencies
-function createCustomIcon(type, label, color = '#ef4444') {
+// Custom SVG Icons with Calm in a Crisis palette
+function createCustomIcon(type, label, color = '#E66B55') {
   let html = '';
   if (type === 'incident') {
     html = `
       <div style="position: relative; display: flex; align-items: center; justify-content: center;">
-        <div style="position: absolute; width: 34px; height: 34px; border-radius: 50%; background-color: ${color}33; border: 2px solid ${color}; animation: ping 2s cubic-bezier(0,0,0.2,1) infinite;"></div>
-        <div style="position: relative; width: 22px; height: 22px; border-radius: 50%; background-color: ${color}; border: 2px solid #ffffff; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 10px ${color};">
-          <span style="font-size: 11px; font-weight: bold; color: white;">!</span>
+        <div style="position: absolute; width: 32px; height: 32px; border-radius: 50%; background-color: #E66B5522; border: 1.5px solid #E66B55; animation: pulse 2s infinite;"></div>
+        <div style="position: relative; width: 22px; height: 22px; border-radius: 50%; background-color: #E66B55; border: 2px solid #FFFFFF; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(230, 107, 85, 0.35);">
+          <span style="font-size: 11px; font-weight: 700; color: white; line-height: 1;">!</span>
         </div>
       </div>
     `;
   } else if (type === 'ambulance') {
     html = `
-      <div style="display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 8px; background-color: #0d1322; border: 2px solid #06b6d4; box-shadow: 0 0 8px #06b6d4; font-size: 14px;">
-        🚑
+      <div style="display: flex; align-items: center; gap: 4px; padding: 3px 6px; border-radius: 9999px; background-color: #FFFFFF; border: 1.5px solid #245C4A; box-shadow: 0 2px 6px rgba(36, 92, 74, 0.15);">
+        <div style="width: 14px; height: 14px; border-radius: 50%; background-color: #245C4A; display: flex; align-items: center; justify-content: center; color: white; font-size: 8px;">✚</div>
+        <span style="font-size: 10px; font-weight: 700; color: #203B32; font-family: monospace;">${label || 'AMB'}</span>
       </div>
     `;
   } else if (type === 'hospital') {
     html = `
-      <div style="display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 8px; background-color: #0d1322; border: 2px solid #3b82f6; box-shadow: 0 0 8px #3b82f6; font-size: 14px;">
-        🏥
+      <div style="display: flex; align-items: center; gap: 4px; padding: 3px 6px; border-radius: 9999px; background-color: #FFFFFF; border: 1.5px solid #203B32; box-shadow: 0 2px 6px rgba(32, 59, 50, 0.12);">
+        <div style="width: 14px; height: 14px; border-radius: 50%; background-color: #203B32; display: flex; align-items: center; justify-content: center; color: white; font-size: 9px;">H</div>
+        <span style="font-size: 10px; font-weight: 600; color: #203B32; max-width: 65px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${label || 'ER'}</span>
       </div>
     `;
   }
@@ -31,9 +33,9 @@ function createCustomIcon(type, label, color = '#ef4444') {
   return L.divIcon({
     className: 'custom-leaflet-marker',
     html: html,
-    iconSize: [32, 32],
-    iconAnchor: [16, 16],
-    popupAnchor: [0, -16]
+    iconSize: [36, 36],
+    iconAnchor: [18, 18],
+    popupAnchor: [0, -18]
   });
 }
 
@@ -55,12 +57,12 @@ export default function MapView({
   routes = [],
   center = [12.955, 77.545],
   zoom = 13,
-  height = '460px'
+  height = '480px'
 }) {
   const defaultCenter = center || [12.955, 77.545];
 
   return (
-    <div style={{ height, width: '100%' }} className="rounded-xl overflow-hidden relative border border-resq-border shadow-inner dark-tiles">
+    <div style={{ height, width: '100%' }} className="rounded-2xl overflow-hidden relative border border-[#E8E8E1] shadow-subtle bg-[#F8F7F2]">
       <MapContainer
         center={defaultCenter}
         zoom={zoom}
@@ -69,7 +71,7 @@ export default function MapView({
       >
         <MapRecenter center={defaultCenter} />
         
-        {/* OpenStreetMap dark-styled tiles */}
+        {/* OpenStreetMap light-styled tiles */}
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -78,7 +80,7 @@ export default function MapView({
         {/* 1. Incidents */}
         {incidents.map((inc) => {
           if (!inc.lat || !inc.lng) return null;
-          const color = inc.priority === 'CRITICAL' ? '#ef4444' : (inc.priority === 'HIGH' ? '#f97316' : '#eab308');
+          const color = inc.priority === 'CRITICAL' ? '#E66B55' : (inc.priority === 'HIGH' ? '#E7B65C' : '#245C4A');
           return (
             <Marker
               key={`inc-${inc.id}`}
@@ -86,11 +88,16 @@ export default function MapView({
               icon={createCustomIcon('incident', inc.id, color)}
             >
               <Popup>
-                <div className="text-slate-900 font-sans p-1 text-xs">
-                  <p className="font-bold text-red-600 font-mono text-sm">{inc.id} ({inc.priority})</p>
-                  <p className="font-semibold text-slate-800">{inc.location}</p>
-                  <p className="text-slate-600 mt-1">{inc.people_count || inc.peopleCount || 1} people involved</p>
-                  <p className="text-slate-500 font-mono text-[10px] mt-1">Status: {inc.status}</p>
+                <div className="font-sans p-1 text-xs text-[#203B32]">
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <span className="font-mono font-bold text-xs text-[#B94430]">{inc.id}</span>
+                    <span className="text-[10px] uppercase font-bold px-1.5 py-0.2 rounded bg-[#FCECE9] text-[#B94430]">
+                      {inc.priority}
+                    </span>
+                  </div>
+                  <p className="font-medium text-[#203B32]">{inc.location}</p>
+                  <p className="text-[#707970] mt-1">{inc.people_count || inc.peopleCount || 1} people involved</p>
+                  <p className="text-[#707970] font-mono text-[10px] mt-0.5">Status: {inc.status}</p>
                 </div>
               </Popup>
             </Marker>
@@ -104,15 +111,16 @@ export default function MapView({
             <Marker
               key={`amb-${amb.id}`}
               position={[amb.lat, amb.lng]}
-              icon={createCustomIcon('ambulance', amb.id)}
+              icon={createCustomIcon('ambulance', amb.id?.slice(-3) || 'AMB')}
             >
               <Popup>
-                <div className="text-slate-900 font-sans p-1 text-xs">
-                  <p className="font-bold text-cyan-700 font-mono text-sm">Unit {amb.id}</p>
-                  <p className="font-medium text-slate-700">{amb.name}</p>
-                  <p className="text-slate-600 mt-0.5">Capability: <strong>{amb.capability}</strong></p>
-                  <p className="text-slate-600">Base: {amb.base_location}</p>
-                  <p className="font-mono text-[10px] font-semibold text-emerald-700 mt-1">Status: {amb.status}</p>
+                <div className="font-sans p-1 text-xs text-[#203B32]">
+                  <p className="font-bold text-sm text-[#245C4A]">{amb.name} ({amb.id})</p>
+                  <p className="text-[#707970] text-[11px] mt-0.5">Capability: <strong>{amb.capability}</strong></p>
+                  <p className="text-[#707970] text-[11px]">Base: {amb.base_location}</p>
+                  <div className="mt-1.5 inline-block text-[10px] font-semibold text-[#245C4A] bg-[#EEF4EF] px-2 py-0.5 rounded">
+                    {amb.status}
+                  </div>
                 </div>
               </Popup>
             </Marker>
@@ -122,21 +130,22 @@ export default function MapView({
         {/* 3. Hospitals */}
         {hospitals.map((hosp) => {
           if (!hosp.lat || !hosp.lng) return null;
+          const shortName = hosp.name?.split(' ')[0] || 'Hospital';
           return (
             <Marker
               key={`hosp-${hosp.id}`}
               position={[hosp.lat, hosp.lng]}
-              icon={createCustomIcon('hospital', hosp.id)}
+              icon={createCustomIcon('hospital', shortName)}
             >
               <Popup>
-                <div className="text-slate-900 font-sans p-1 text-xs">
-                  <p className="font-bold text-blue-700 text-sm">{hosp.name}</p>
-                  <p className="text-slate-700 text-[11px]">{hosp.capability}</p>
-                  <div className="mt-1 flex gap-2 font-mono text-[11px]">
-                    <span className="text-emerald-700 font-bold">{hosp.emergency_beds_available} ER Beds</span>
-                    <span className="text-indigo-700 font-bold">{hosp.icu_beds_available} ICU</span>
+                <div className="font-sans p-1 text-xs text-[#203B32]">
+                  <p className="font-bold text-sm text-[#203B32]">{hosp.name}</p>
+                  <p className="text-[#707970] text-[11px]">{hosp.capability}</p>
+                  <div className="mt-1.5 flex gap-2 font-mono text-[11px]">
+                    <span className="text-[#245C4A] font-bold bg-[#EEF4EF] px-1.5 py-0.5 rounded">{hosp.emergency_beds_available} ER Beds</span>
+                    <span className="text-[#203B32] font-bold bg-[#F4F7F4] px-1.5 py-0.5 rounded">{hosp.icu_beds_available} ICU</span>
                   </div>
-                  <p className="text-[10px] text-slate-500 mt-1 font-mono">Intake: {hosp.capacity_status}</p>
+                  <p className="text-[10px] text-[#707970] mt-1">Capacity: {hosp.capacity_status}</p>
                 </div>
               </Popup>
             </Marker>
@@ -149,16 +158,12 @@ export default function MapView({
           const isSelected = Boolean(rt.is_selected);
           const isRecommended = Boolean(rt.is_recommended);
           
-          let color = '#f59e0b'; // amber
+          let color = '#E7B65C'; // warm amber for alternative
           let weight = 4;
-          let dashArray = '6, 8';
+          let dashArray = '5, 8';
 
-          if (isSelected) {
-            color = '#06b6d4'; // cyan
-            weight = 6;
-            dashArray = undefined;
-          } else if (isRecommended) {
-            color = '#10b981'; // emerald
+          if (isRecommended || isSelected) {
+            color = '#245C4A'; // forest green for recommended
             weight = 5;
             dashArray = undefined;
           }
@@ -171,15 +176,16 @@ export default function MapView({
                 color,
                 weight,
                 dashArray,
-                opacity: isSelected ? 0.95 : 0.75
+                opacity: isRecommended || isSelected ? 0.95 : 0.7
               }}
             >
               <Popup>
-                <div className="text-slate-900 font-sans p-1 text-xs">
-                  <p className="font-bold text-sm">{rt.route_name} {isRecommended && '(Recommended)'}</p>
-                  <p className="text-slate-700">{rt.distance_km || rt.distanceKm} km • {rt.eta_min || rt.etaMin} min</p>
-                  <p className="text-slate-500 font-mono text-[10px]">Traffic: {rt.traffic_level || rt.traffic}</p>
-                  <p className="text-slate-500 font-mono text-[10px]">Risk: {rt.risk_level || rt.risk}</p>
+                <div className="font-sans p-1 text-xs text-[#203B32]">
+                  <p className="font-bold text-sm text-[#203B32]">
+                    {rt.route_name} {isRecommended && '(Recommended)'}
+                  </p>
+                  <p className="text-[#707970]">{rt.distance_km || rt.distanceKm} km • {rt.eta_min || rt.etaMin} min transit</p>
+                  <p className="text-[#707970] font-mono text-[10px] mt-0.5">Traffic: {rt.traffic_level || rt.traffic}</p>
                 </div>
               </Popup>
             </Polyline>
@@ -189,26 +195,26 @@ export default function MapView({
       </MapContainer>
 
       {/* Map Legend Overlay */}
-      <div className="absolute bottom-3 left-3 z-[1000] glass-panel px-3 py-2 rounded-lg text-[11px] font-mono border border-slate-700/80 shadow-lg flex flex-wrap items-center gap-3">
+      <div className="absolute bottom-3 left-3 z-[1000] bg-white/95 backdrop-blur-sm px-3.5 py-2 rounded-xl text-[11px] font-sans border border-[#E8E8E1] shadow-sheet flex flex-wrap items-center gap-3.5">
         <div className="flex items-center gap-1.5">
-          <span className="w-2.5 h-2.5 rounded-full bg-red-500" />
-          <span className="text-slate-300">Incident</span>
+          <span className="w-2.5 h-2.5 rounded-full bg-[#E66B55]" />
+          <span className="text-[#203B32] font-medium">Incident</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <span>🚑</span>
-          <span className="text-slate-300">Ambulance</span>
+          <span className="w-2 h-2 rounded-full bg-[#245C4A]" />
+          <span className="text-[#203B32] font-medium">Ambulance</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <span>🏥</span>
-          <span className="text-slate-300">Hospital</span>
+          <span className="w-2.5 h-2.5 rounded bg-[#203B32] text-white text-[8px] flex items-center justify-center font-bold">H</span>
+          <span className="text-[#203B32] font-medium">Hospital</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <span className="w-4 h-1 bg-emerald-500 rounded" />
-          <span className="text-slate-300">Recommended Route (B)</span>
+          <span className="w-5 h-1 bg-[#245C4A] rounded" />
+          <span className="text-[#245C4A] font-semibold">Route B (Recommended)</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <span className="w-4 h-1 bg-amber-500 border-dashed rounded" />
-          <span className="text-slate-300">Alternative (A)</span>
+          <span className="w-5 h-1 bg-[#E7B65C] border-dashed rounded" />
+          <span className="text-[#9E6F18] font-medium">Route A (Choked)</span>
         </div>
       </div>
     </div>

@@ -4,68 +4,122 @@
 
 @layer base {
   body {
-    background-color: #070a12;
-    color: #f1f5f9;
-    font-family: 'Inter', system-ui, sans-serif;
+    background-color: #F8F7F2;
+    color: #203B32;
+    font-family: 'Plus Jakarta Sans', 'Inter', system-ui, -apple-system, sans-serif;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1, h2, h3, .font-editorial {
+    letter-spacing: -0.015em;
   }
 }
 
-/* Custom Scrollbar */
+/* Custom Editorial Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #090e1a;
+  background: #F8F7F2;
 }
 ::-webkit-scrollbar-thumb {
-  background: #1e2c4a;
+  background: #DCDCD3;
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #334a75;
+  background: #CBDACD;
 }
 
-/* Glassmorphism Panel */
+/* Document & Sheet Styling - Calm in a Crisis */
+.calm-sheet {
+  background-color: #FFFFFF;
+  border: 1px solid #E8E8E1;
+  box-shadow: 0 1px 3px 0 rgba(32, 59, 50, 0.03), 0 1px 2px 0 rgba(32, 59, 50, 0.02);
+}
+
+.calm-sheet-elevated {
+  background-color: #FFFFFF;
+  border: 1px solid #E8E8E1;
+  box-shadow: 0 4px 20px -2px rgba(32, 59, 50, 0.06), 0 2px 6px -1px rgba(32, 59, 50, 0.03);
+}
+
+.calm-tinted {
+  background-color: #F4F7F4;
+  border: 1px solid #E8E8E1;
+}
+
+/* Backwards compatibility for panel classes */
 .glass-panel {
-  background: rgba(13, 19, 34, 0.78);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(42, 60, 99, 0.55);
+  background-color: #FFFFFF;
+  border: 1px solid #E8E8E1;
+  box-shadow: 0 1px 3px 0 rgba(32, 59, 50, 0.03);
 }
 
 .glass-card {
-  background: rgba(17, 25, 45, 0.7);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  border: 1px solid rgba(30, 44, 74, 0.6);
+  background-color: #FFFFFF;
+  border: 1px solid #E8E8E1;
+  box-shadow: 0 1px 2px 0 rgba(32, 59, 50, 0.02);
 }
 
-/* Pulsing radar dot for live beacons */
-.radar-pulse {
-  position: relative;
+/* Subtle operational card hover */
+.ops-interactive-card {
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
-.radar-pulse::after {
-  content: '';
-  position: absolute;
-  top: -4px;
-  left: -4px;
-  right: -4px;
-  bottom: -4px;
+.ops-interactive-card:hover {
+  border-color: #245C4A;
+  box-shadow: 0 4px 12px -2px rgba(36, 92, 74, 0.08);
+}
+
+/* Subtle audio waveform animation for active recording */
+@keyframes voice-wave {
+  0%, 100% { height: 6px; }
+  50% { height: 26px; }
+}
+
+.waveform-bar {
+  animation: voice-wave 0.85s ease-in-out infinite alternate;
+  background-color: #245C4A;
   border-radius: 9999px;
-  border: 2px solid currentColor;
-  animation: beacon 2s ease-in-out infinite;
+  width: 3px;
 }
+.waveform-bar:nth-child(2) { animation-delay: 0.12s; }
+.waveform-bar:nth-child(3) { animation-delay: 0.24s; }
+.waveform-bar:nth-child(4) { animation-delay: 0.36s; }
+.waveform-bar:nth-child(5) { animation-delay: 0.18s; }
+.waveform-bar:nth-child(6) { animation-delay: 0.30s; }
+.waveform-bar:nth-child(7) { animation-delay: 0.08s; }
+.waveform-bar:nth-child(8) { animation-delay: 0.22s; }
 
 /* Map specific styling */
 .leaflet-container {
   width: 100%;
   height: 100%;
-  background: #070a12;
+  background: #F8F7F2;
   border-radius: 0.75rem;
+  z-index: 10;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
 }
 
-/* Leaflet dark tile filter */
-.dark-tiles .leaflet-tile {
-  filter: brightness(0.65) invert(1) contrast(3.2) hue-rotate(200deg) saturate(0.35);
+/* Crisp Leaflet popups */
+.leaflet-popup-content-wrapper {
+  background: #FFFFFF !important;
+  color: #203B32 !important;
+  border: 1px solid #E8E8E1 !important;
+  border-radius: 12px !important;
+  box-shadow: 0 10px 25px -4px rgba(32, 59, 50, 0.12) !important;
+  padding: 4px !important;
+}
+
+.leaflet-popup-tip {
+  background: #FFFFFF !important;
+  border: 1px solid #E8E8E1 !important;
+}
+
+/* Custom Leaflet Marker Clean Containers */
+.custom-leaflet-marker {
+  background: transparent;
+  border: none;
 }

@@ -5,15 +5,18 @@ import {
   Clock, 
   MapPin, 
   CheckCircle2, 
-  Sparkles, 
   ChevronRight, 
   Send, 
   AlertCircle,
   Activity,
   Bed,
-  Phone,
-  ShieldCheck
+  Search,
+  ArrowRight,
+  ShieldCheck,
+  Truck
 } from 'lucide-react';
+import MapView from '../components/MapView';
+import { SimulationBadge } from '../components/StatusBadge';
 import { api } from '../services/api';
 import { socket } from '../services/socket';
 
@@ -27,6 +30,7 @@ export default function HospitalMatching() {
   const [selectingId, setSelectingId] = useState(null);
   const [selectedHospital, setSelectedHospital] = useState(null);
   const [preAlertNotice, setPreAlertNotice] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const loadHospitals = async () => {
     try {
@@ -38,8 +42,11 @@ export default function HospitalMatching() {
           setSelectedHospital(alreadySelected);
           setPreAlertNotice({
             hospital: alreadySelected,
-            status: 'ALERT SENT'
+            status: 'PRE-ALERT ACTIVE'
           });
+        } else {
+          const rec = res.hospitals.find(h => h.isRecommended) || res.hospitals[0];
+          if (rec) setSelectedHospital(rec);
         }
       }
     } catch (err) {
@@ -69,7 +76,7 @@ export default function HospitalMatching() {
       setSelectedHospital(hosp);
       setPreAlertNotice({
         hospital: hosp,
-        status: 'ALERT SENT'
+        status: 'PRE-ALERT SENT'
       });
       loadHospitals();
     } catch (err) {
@@ -79,252 +86,264 @@ export default function HospitalMatching() {
     }
   };
 
+  const filteredHospitals = hospitals.filter(h => {
+    const q = searchQuery.toLowerCase();
+    return !searchQuery.trim() ||
+      h.name.toLowerCase().includes(q) ||
+      h.address.toLowerCase().includes(q) ||
+      h.capability?.toLowerCase().includes(q);
+  });
+
   return (
-    <div className="max-w-5xl mx-auto px-4 py-8 pb-28 space-y-8">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-32 space-y-6">
       
       {/* Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-resq-border pb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-[#E8E8E1] gap-3">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <span className="text-xs font-mono font-bold text-cyan-400 uppercase tracking-widest">
-              TRAUMA NETWORK &amp; BED AVAILABILITY INTAKE
+            <span className="w-2 h-2 rounded-full bg-[#245C4A]" />
+            <span className="text-xs uppercase font-sans font-semibold tracking-wider text-[#707970]">
+              Trauma Network Coordination
             </span>
-            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-indigo-950 border border-indigo-800 text-indigo-300">
-              8 HOSPITALS MONITORED
-            </span>
+            <SimulationBadge />
           </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-white">
-            Intelligent Hospital Matching
+          <h1 className="font-serif text-3xl font-bold text-[#203B32] tracking-tight">
+            Trauma Center Alignment
           </h1>
-          <p className="text-xs text-slate-400 mt-1">
-            Evaluates trauma resuscitation level, ICU open beds, and intake acceptance — preventing ambulance diversion at ER gates.
+          <p className="text-xs text-[#707970] font-sans mt-0.5">
+            Real-time ER bed availability, ICU surge capacity, and automated emergency pre-alert broadcast.
           </p>
         </div>
 
-        {selectedHospital && (
+        <div className="flex items-center gap-2">
           <Link
-            to={`/map?incidentId=${incidentId}`}
-            className="flex items-center gap-2 px-5 py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 text-white font-bold text-xs tracking-wider shadow-lg shadow-emerald-600/20 transition-all hover:scale-105"
+            to="/ambulances"
+            className="px-4 py-2 rounded-xl bg-white hover:bg-[#F8F7F2] text-[#203B32] border border-[#E8E8E1] text-xs font-sans font-semibold flex items-center gap-1.5 transition-colors"
           >
-            <span>PROCEED TO ROUTE INTELLIGENCE</span>
-            <ChevronRight className="w-4 h-4" />
+            <Truck className="w-3.5 h-3.5 text-[#245C4A]" />
+            <span>Ambulance Fleet</span>
           </Link>
-        )}
+
+          <Link
+            to={`/handoff/${incidentId}`}
+            className="px-4 py-2 rounded-xl bg-[#245C4A] hover:bg-[#1D4A3B] text-white text-xs font-sans font-semibold flex items-center gap-1.5 shadow-sm transition-all"
+          >
+            <span>Handoff Brief</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </Link>
+        </div>
       </div>
 
-      {/* Hospital Pre-Alert Generated Banner (Section 8 Hero) */}
       {preAlertNotice && (
-        <div className="rounded-2xl border-2 border-emerald-500/50 bg-gradient-to-r from-emerald-950/60 via-slate-900 to-emerald-950/60 p-6 shadow-2xl shadow-emerald-950/60 text-slate-100">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-emerald-800/40 pb-4 mb-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/40">
-                <Send className="w-5 h-5" />
-              </div>
-              <div>
-                <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-emerald-400">
-                  TRAUMA INTAKE BROADCAST
-                </span>
-                <h3 className="text-lg font-bold font-mono text-white">
-                  EMERGENCY PRE-ALERT TRANSMITTED
-                </h3>
-              </div>
-            </div>
-            <span className="px-3 py-1 rounded-full font-mono text-xs font-bold bg-emerald-500/20 border border-emerald-500/50 text-emerald-300 animate-pulse">
-              STATUS: ALERT SENT ✓
+        <div className="p-3.5 bg-[#EEF4EF] border border-[#CBDACD] text-[#245C4A] text-xs font-sans rounded-2xl flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 shrink-0" />
+            <span className="font-medium">
+              Automated pre-alert transmitted to {preAlertNotice.hospital.name} emergency desk.
             </span>
           </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs font-mono mb-4">
-            <div className="p-2.5 rounded bg-slate-900/80 border border-slate-800">
-              <span className="text-slate-400 block text-[10px]">INCIDENT ID:</span>
-              <span className="font-bold text-white">{incidentId}</span>
-            </div>
-            <div className="p-2.5 rounded bg-slate-900/80 border border-slate-800">
-              <span className="text-slate-400 block text-[10px]">DESTINATION ER:</span>
-              <span className="font-bold text-cyan-300 truncate block">{preAlertNotice.hospital.name}</span>
-            </div>
-            <div className="p-2.5 rounded bg-slate-900/80 border border-slate-800">
-              <span className="text-slate-400 block text-[10px]">INCOMING ETA:</span>
-              <span className="font-bold text-emerald-400">{preAlertNotice.hospital.etaMin || 12} MINUTES</span>
-            </div>
-            <div className="p-2.5 rounded bg-slate-900/80 border border-slate-800">
-              <span className="text-slate-400 block text-[10px]">PREPARATION:</span>
-              <span className="font-bold text-amber-300">Trauma Team Requested</span>
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between pt-1 text-xs">
-            <span className="text-slate-400">
-              Hospital ER staff received preliminary casualty telemetry to prepare triage bays prior to ambulance arrival.
-            </span>
-            <Link
-              to={`/map?incidentId=${incidentId}`}
-              className="font-mono text-cyan-400 hover:text-cyan-300 font-bold underline shrink-0 ml-3"
-            >
-              Lock Transit Route →
-            </Link>
-          </div>
+          <Link to={`/handoff/${incidentId}`} className="font-bold underline text-xs">
+            View Live Handoff Brief →
+          </Link>
         </div>
       )}
 
-      {/* Recommended Hospital Card */}
-      {hospitals.length > 0 && (
-        <div>
-          <div className="flex items-center gap-2 mb-3">
-            <Sparkles className="w-4 h-4 text-cyan-400" />
-            <span className="text-xs font-mono font-bold uppercase tracking-wider text-cyan-300">
-              AI OPTIMAL TRAUMA FACILITY RECOMMENDATION:
-            </span>
+      {/* COORDINATED MAP-AND-LIST EXPERIENCE */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        
+        {/* Left Column: Elegant Table & Filtered Hospital Roster */}
+        <div className="lg:col-span-8 space-y-4">
+          <div className="bg-white rounded-3xl border border-[#E8E8E1] p-5 shadow-subtle">
+            
+            {/* Filter Search */}
+            <div className="pb-4 border-b border-[#E8E8E1] mb-4">
+              <div className="relative max-w-sm">
+                <Search className="w-3.5 h-3.5 text-[#929B92] absolute left-3 top-2.5" />
+                <input
+                  type="text"
+                  placeholder="Search hospital name, capability, address..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-8 pr-3 py-1.5 text-xs bg-[#F8F7F2] border border-[#E8E8E1] rounded-xl text-[#203B32] placeholder-[#929B92] focus:outline-none focus:border-[#245C4A]"
+                />
+              </div>
+            </div>
+
+            {/* Elegant Table */}
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs font-sans">
+                <thead>
+                  <tr className="border-b border-[#E8E8E1] text-[#707970] text-[11px] uppercase tracking-wider">
+                    <th className="pb-3 font-semibold pl-2">Hospital Facility</th>
+                    <th className="pb-3 font-semibold">Trauma Level</th>
+                    <th className="pb-3 font-semibold">ER Beds</th>
+                    <th className="pb-3 font-semibold">ICU Beds</th>
+                    <th className="pb-3 font-semibold">Transit ETA</th>
+                    <th className="pb-3 font-semibold pr-2 text-right">Pre-Alert</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#E8E8E1]">
+                  {filteredHospitals.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="py-8 text-center text-[#707970]">
+                        No trauma facilities found matching search criteria.
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredHospitals.map((hosp) => {
+                      const isSelected = selectedHospital?.id === hosp.id;
+                      const isPreAlerted = hosp.isSelected;
+                      const isRec = hosp.isRecommended;
+
+                      return (
+                        <tr
+                          key={hosp.id}
+                          onClick={() => setSelectedHospital(hosp)}
+                          className={`hover:bg-[#F8F7F2] transition-colors cursor-pointer ${
+                            isSelected ? 'bg-[#EEF4EF]/50' : ''
+                          } ${isRec ? 'border-l-2 border-l-[#245C4A]' : ''}`}
+                        >
+                          <td className="py-3.5 pl-2">
+                            <div className="flex items-center gap-2">
+                              <span className="font-semibold text-[#203B32]">{hosp.name}</span>
+                              {isRec && (
+                                <span className="text-[9px] font-bold px-1.5 py-0.2 bg-[#EEF4EF] text-[#245C4A] border border-[#CBDACD] rounded">
+                                  RECOMMENDED
+                                </span>
+                              )}
+                            </div>
+                            <span className="text-[11px] text-[#707970] block truncate max-w-xs">{hosp.address}</span>
+                          </td>
+
+                          <td className="py-3.5">
+                            <span className="inline-block px-2 py-0.5 rounded text-[11px] font-semibold bg-[#F4F7F4] text-[#203B32] border border-[#E8E8E1]">
+                              {hosp.capability || 'Level 1 Trauma'}
+                            </span>
+                          </td>
+
+                          <td className="py-3.5">
+                            <span className="font-mono font-bold text-[#245C4A] bg-[#EEF4EF] px-2 py-0.5 rounded">
+                              {hosp.emergency_beds_available} Available
+                            </span>
+                          </td>
+
+                          <td className="py-3.5">
+                            <span className="font-mono font-bold text-[#203B32] bg-[#F4F7F4] px-2 py-0.5 rounded">
+                              {hosp.icu_beds_available} ICU
+                            </span>
+                          </td>
+
+                          <td className="py-3.5">
+                            <div className="flex items-center gap-1 font-semibold text-[#203B32]">
+                              <Clock className="w-3.5 h-3.5 text-[#245C4A]" />
+                              <span>{hosp.eta_min || 11} min</span>
+                            </div>
+                          </td>
+
+                          <td className="py-3.5 pr-2 text-right">
+                            {isPreAlerted ? (
+                              <span className="text-[11px] font-semibold text-[#245C4A] bg-[#EEF4EF] px-2.5 py-1 rounded-lg border border-[#CBDACD]">
+                                Pre-Alerted
+                              </span>
+                            ) : (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleSelect(hosp);
+                                }}
+                                disabled={selectingId === hosp.id}
+                                className="px-3 py-1 rounded-lg bg-[#245C4A] hover:bg-[#1D4A3B] text-white text-xs font-semibold shadow-sm transition-all disabled:opacity-50"
+                              >
+                                {selectingId === hosp.id ? 'Sending...' : 'Send Alert'}
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+
           </div>
+        </div>
 
-          {(() => {
-            const top = hospitals.find(h => h.isRecommended) || hospitals[0];
-            const isSelected = top.isSelected;
-            return (
-              <div className="relative rounded-2xl border-2 border-indigo-500/60 bg-gradient-to-r from-[#0d1326] via-[#090d1c] to-[#0d1326] p-6 shadow-2xl shadow-indigo-950/40">
-                <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                  
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-3">
-                      <span className="text-xl font-extrabold text-white font-mono">
-                        {top.name}
-                      </span>
-                      <span className="text-[11px] font-mono px-2.5 py-0.5 rounded-full font-bold uppercase bg-indigo-500/20 text-indigo-300 border border-indigo-500/40">
-                        {top.capability}
-                      </span>
-                    </div>
+        {/* Right Column: Contextual Detail Panel & Spatial Map */}
+        <div className="lg:col-span-4 space-y-4">
+          
+          {selectedHospital && (
+            <div className="bg-white rounded-3xl border border-[#E8E8E1] p-5 shadow-subtle space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b border-[#E8E8E1]">
+                <div>
+                  <span className="text-[11px] font-sans text-[#707970] uppercase">Selected Facility</span>
+                  <h3 className="font-serif text-lg font-bold text-[#203B32]">
+                    {selectedHospital.name}
+                  </h3>
+                </div>
+                <span className="font-mono text-xs text-[#707970] bg-[#F8F7F2] px-2 py-0.5 rounded border border-[#E8E8E1]">
+                  {selectedHospital.id}
+                </span>
+              </div>
 
-                    <p className="text-xs text-slate-300 max-w-xl leading-relaxed">
-                      <strong>Recommendation Rationale:</strong> {top.aiRecommendationReason}
-                    </p>
+              {/* Rationale if recommended */}
+              <div className="p-3.5 bg-[#EEF4EF] rounded-2xl border border-[#CBDACD] text-xs font-sans text-[#203B32]">
+                <span className="font-bold text-[#245C4A] block mb-1">
+                  Why this hospital was selected:
+                </span>
+                <p className="text-[#203B32] leading-relaxed text-[11px]">
+                  {selectedHospital.recommendation_reason || 
+                    `Highest trauma readiness score in southern corridor with ${selectedHospital.emergency_beds_available} emergency beds and active neuro-trauma team on duty.`}
+                </p>
+              </div>
 
-                    <div className="flex flex-wrap items-center gap-4 text-xs font-mono text-slate-400 pt-1">
-                      <span className="flex items-center gap-1.5 text-emerald-400 font-bold">
-                        <Clock className="w-3.5 h-3.5" />
-                        ETA: {top.etaMin} MINUTES
-                      </span>
-                      <span className="flex items-center gap-1.5 text-cyan-300">
-                        <Bed className="w-3.5 h-3.5" />
-                        {top.emergency_beds_available} Available Emergency Beds ({top.icu_beds_available} ICU)
-                      </span>
-                      <span className="flex items-center gap-1.5">
-                        <MapPin className="w-3.5 h-3.5 text-resq-accent" />
-                        {top.address}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="shrink-0 w-full md:w-auto">
-                    {isSelected ? (
-                      <div className="flex items-center gap-2 px-5 py-3 rounded-xl bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 font-mono font-bold text-xs">
-                        <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                        <span>HOSPITAL CONFIRMED</span>
-                      </div>
-                    ) : (
-                      <button
-                        onClick={() => handleSelect(top)}
-                        disabled={selectingId === top.id}
-                        className="w-full md:w-auto px-6 py-3.5 rounded-xl bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 text-white font-bold text-xs font-mono tracking-wider shadow-lg shadow-indigo-600/30 transition-all hover:scale-105 active:scale-95 disabled:opacity-50"
-                      >
-                        {selectingId === top.id ? 'TRANSMITTING...' : 'SELECT & SEND PRE-ALERT'}
-                      </button>
-                    )}
-                  </div>
-
+              <div className="space-y-2 text-xs font-sans text-[#707970]">
+                <div className="flex justify-between py-1 border-b border-[#E8E8E1]">
+                  <span>Intake Desk Contact:</span>
+                  <span className="font-mono text-[#245C4A]">{selectedHospital.contact_phone || '+91 80 6621 4444'}</span>
+                </div>
+                <div className="flex justify-between py-1 border-b border-[#E8E8E1]">
+                  <span>Surge Capacity:</span>
+                  <span className="font-medium text-[#203B32]">{selectedHospital.capacity_status || 'Accepting Trauma'}</span>
                 </div>
               </div>
-            );
-          })()}
+
+              <div>
+                {selectedHospital.isSelected ? (
+                  <div className="w-full py-2.5 rounded-xl bg-[#EEF4EF] border border-[#CBDACD] text-[#245C4A] text-xs font-semibold text-center">
+                    Pre-Alert Broadcast Confirmed
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => handleSelect(selectedHospital)}
+                    disabled={selectingId === selectedHospital.id}
+                    className="w-full py-2.5 rounded-xl bg-[#245C4A] hover:bg-[#1D4A3B] text-white text-xs font-semibold transition-all shadow-sm flex items-center justify-center gap-1.5"
+                  >
+                    <Send className="w-3.5 h-3.5" />
+                    <span>Broadcast Pre-Alert to {selectedHospital.name}</span>
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Spatial Map Preview */}
+          <div className="bg-white rounded-3xl border border-[#E8E8E1] p-3 shadow-subtle">
+            <div className="h-[260px] rounded-2xl overflow-hidden border border-[#E8E8E1]">
+              <MapView
+                hospitals={filteredHospitals}
+                center={selectedHospital?.lat ? [selectedHospital.lat, selectedHospital.lng] : [12.955, 77.545]}
+                zoom={13}
+                height="100%"
+              />
+            </div>
+            <p className="text-[11px] text-[#707970] text-center mt-2 font-sans">
+              Trauma center spatial network in Bengaluru
+            </p>
+          </div>
+
         </div>
-      )}
 
-      {/* Alternative Hospitals Table */}
-      <div className="glass-panel p-6 rounded-2xl border border-resq-border">
-        <div className="flex items-center justify-between mb-4">
-          <span className="text-xs font-mono font-bold uppercase tracking-wider text-slate-300">
-            REGIONAL TRAUMA NETWORK ({hospitals.length} FACILITIES)
-          </span>
-          <span className="text-[11px] font-mono text-slate-500">Ranked by bed availability &amp; capability match</span>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs font-sans">
-            <thead>
-              <tr className="border-b border-resq-border text-slate-400 font-mono text-[11px] uppercase">
-                <th className="pb-3 font-semibold">Hospital Facility</th>
-                <th className="pb-3 font-semibold">Trauma Level</th>
-                <th className="pb-3 font-semibold">Available Beds</th>
-                <th className="pb-3 font-semibold">ETA</th>
-                <th className="pb-3 font-semibold">Intake Status</th>
-                <th className="pb-3 font-semibold text-right">Action</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-resq-border/40">
-              {hospitals.map((hosp) => {
-                const isSelected = hosp.isSelected;
-                return (
-                  <tr key={hosp.id} className="hover:bg-slate-800/40 transition-colors">
-                    <td className="py-3.5 font-bold text-white">
-                      <div className="flex items-center gap-2">
-                        <span>{hosp.name}</span>
-                        {hosp.isRecommended && (
-                          <span className="px-1.5 py-0.2 rounded bg-indigo-950 text-indigo-400 border border-indigo-800 text-[10px] font-mono">
-                            AI Choice
-                          </span>
-                        )}
-                      </div>
-                      <span className="text-[11px] font-sans font-normal text-slate-400 block mt-0.5">
-                        {hosp.address}
-                      </span>
-                    </td>
-
-                    <td className="py-3.5 text-slate-300 font-mono text-[11px]">
-                      {hosp.capability}
-                    </td>
-
-                    <td className="py-3.5 font-mono">
-                      <span className="text-emerald-400 font-bold">{hosp.emergency_beds_available} ER</span>
-                      <span className="text-slate-500 mx-1">/</span>
-                      <span className="text-indigo-400 font-semibold">{hosp.icu_beds_available} ICU</span>
-                    </td>
-
-                    <td className="py-3.5 font-mono font-bold text-slate-200">
-                      {hosp.etaMin} min
-                    </td>
-
-                    <td className="py-3.5 font-mono">
-                      <span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${
-                        hosp.capacity_status === 'Available'
-                          ? 'bg-emerald-950 text-emerald-400 border border-emerald-800'
-                          : hosp.capacity_status === 'Limited'
-                          ? 'bg-amber-950 text-amber-400 border border-amber-800'
-                          : 'bg-red-950 text-red-400 border border-red-800'
-                      }`}>
-                        {hosp.capacity_status}
-                      </span>
-                    </td>
-
-                    <td className="py-3.5 text-right">
-                      {isSelected ? (
-                        <span className="text-emerald-400 font-mono font-semibold text-[11px]">
-                          Pre-Alert Sent ✓
-                        </span>
-                      ) : (
-                        <button
-                          onClick={() => handleSelect(hosp)}
-                          disabled={selectingId === hosp.id || hosp.capacity_status === 'Full'}
-                          className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-indigo-300 border border-indigo-500/30 font-mono text-xs hover:border-indigo-400 transition-all disabled:opacity-40"
-                        >
-                          {selectingId === hosp.id ? '...' : 'Select & Alert'}
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
       </div>
 
     </div>

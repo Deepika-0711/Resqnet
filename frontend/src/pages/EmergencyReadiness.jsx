@@ -5,12 +5,10 @@ import {
   TrendingUp, 
   Clock, 
   AlertTriangle, 
-  ShieldAlert, 
   Truck, 
   CheckCircle2, 
-  Radio, 
-  Zap,
-  Info
+  Info, 
+  Layers
 } from 'lucide-react';
 import { 
   BarChart, 
@@ -27,10 +25,10 @@ import { SimulationBadge } from '../components/StatusBadge';
 import { api } from '../services/api';
 
 const SEVERITY_COLORS = {
-  CRITICAL: '#ef4444',
-  HIGH: '#f97316',
-  MODERATE: '#eab308',
-  LOW: '#10b981'
+  CRITICAL: '#E66B55',
+  HIGH: '#E7B65C',
+  MODERATE: '#6E9C91',
+  LOW: '#245C4A'
 };
 
 export default function EmergencyReadiness() {
@@ -76,159 +74,140 @@ export default function EmergencyReadiness() {
 
   const recommendations = readinessData?.recommendations || [
     {
-      corridor: 'Mysore Road (Kengeri - Satellite Bus Stand)',
-      historicalDemand: 'HIGH',
-      peakPeriod: '6 PM – 9 PM',
-      recommendedPositioning: 'Consider positioning additional emergency capacity (ALS Units) near Nayandahalli Junction during peak evening commute.',
-      priorityLevel: 'HIGH',
-      suggestedUnits: ['AMB-102', 'AMB-108']
+      corridor: 'Mysore Road (Near Kengeri Satellite Bus Stand)',
+      priority: 'HIGH',
+      recommendedUnits: '2 ALS Units',
+      peakWindow: '18:00 - 21:00',
+      rationale: 'Accident probability spikes 3.2x during evening peak hours with high heavy vehicle traffic.'
     },
     {
-      corridor: 'Silk Board Junction & Hosur Road Flyover',
-      historicalDemand: 'HIGH',
-      peakPeriod: '8 AM – 11 AM & 6 PM – 9 PM',
-      recommendedPositioning: 'Pre-deploy BLS rapid responder unit on elevated toll access ramp to bypass grade bottlenecks.',
-      priorityLevel: 'HIGH',
-      suggestedUnits: ['AMB-104']
+      corridor: 'Silk Board Junction Flyover Exit',
+      priority: 'HIGH',
+      recommendedUnits: '1 ALS + 1 BLS Unit',
+      peakWindow: '08:30 - 10:30',
+      rationale: 'Frequent multi-vehicle pileups during morning rush hour with high pedestrian exposure.'
     },
     {
-      corridor: 'Outer Ring Road (Marathahalli - Bellandur)',
-      historicalDemand: 'MODERATE',
-      peakPeriod: '7 PM – 10 PM',
-      recommendedPositioning: 'Maintain green-corridor liaison with HAL traffic division for fast transit to Manipal Hospital.',
-      priorityLevel: 'MODERATE',
-      suggestedUnits: ['AMB-125']
+      corridor: 'Hebbal Flyover Incline Ramp',
+      priority: 'MODERATE',
+      recommendedUnits: '1 BLS Unit',
+      peakWindow: '20:00 - 23:00',
+      rationale: 'Elevated two-wheeler skid incidents reported in corridor logs during late evening hours.'
     }
   ];
 
   const hotspots = hotspotData?.hotspots || [
-    { corridor: 'Mysore Road (Kengeri - Satellite Bus Stand)', totalAccidents: 15, criticalCount: 9, avgResponseTime: 9.8, avgRiskIndex: 0.88 },
-    { corridor: 'Silk Board Junction & Hosur Road Flyover', totalAccidents: 12, criticalCount: 6, avgResponseTime: 14.2, avgRiskIndex: 0.76 },
-    { corridor: 'Outer Ring Road (Marathahalli - Bellandur)', totalAccidents: 10, criticalCount: 5, avgResponseTime: 16.5, avgRiskIndex: 0.82 },
-    { corridor: 'Hebbal Flyover - Bellary Road Highway', totalAccidents: 9, criticalCount: 4, avgResponseTime: 11.2, avgRiskIndex: 0.65 }
+    { id: 1, name: 'Silk Board Junction Flyover Exit', incident_count: 38, high_priority_count: 24, primary_factor: 'Weaving traffic & flyover merge' },
+    { id: 2, name: 'Mysore Road / NICE Road Interchange', incident_count: 29, high_priority_count: 18, primary_factor: 'Speed variance between heavy transport & autos' },
+    { id: 3, name: 'Hebbal Flyover Ramp', incident_count: 22, high_priority_count: 11, primary_factor: 'Two-wheeler lane discipline & merge curve' },
+    { id: 4, name: 'Kanakapura Road / Metro Pillar Corridor', incident_count: 17, high_priority_count: 8, primary_factor: 'Blind turns & pedestrian crossing' }
   ];
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8 pb-32 space-y-8">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-32 space-y-6">
       
       {/* Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-resq-border pb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-[#E8E8E1] gap-3">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <span className="text-xs font-mono font-bold text-cyan-400 uppercase tracking-widest">
-              PREDICTIVE CORRIDOR READINESS &amp; AMBULANCE STAGING
+            <span className="w-2 h-2 rounded-full bg-[#245C4A]" />
+            <span className="text-xs uppercase font-sans font-semibold tracking-wider text-[#707970]">
+              Predictive Preparedness
             </span>
             <SimulationBadge />
           </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-white">
-            Predictive Emergency Readiness
+          <h1 className="font-serif text-3xl font-bold text-[#203B32] tracking-tight">
+            Corridor Readiness &amp; Staging
           </h1>
-          <p className="text-xs text-slate-400 mt-1">
-            Analyzes historical accident patterns, peak evening congestion, and response bottlenecks to recommend proactive fleet staging.
+          <p className="text-xs text-[#707970] font-sans mt-0.5">
+            Historical demand patterns, peak hour vulnerability, and proactive ambulance deployment.
           </p>
         </div>
       </div>
 
-      {/* Recommended Fleet Staging Zones (Section 12 Hero Callout) */}
+      {/* Proactive Staging Directives */}
       <div className="space-y-3">
-        <div className="flex items-center gap-2">
-          <Zap className="w-4 h-4 text-cyan-400" />
-          <h2 className="text-xs font-mono font-bold uppercase tracking-wider text-cyan-300">
-            PROACTIVE FLEET STAGING RECOMMENDATIONS
-          </h2>
-        </div>
+        <h2 className="font-serif text-lg font-bold text-[#203B32]">
+          Proactive Fleet Staging Recommendations
+        </h2>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {recommendations.map((rec, idx) => (
-            <div
-              key={idx}
-              className="glass-panel p-5 rounded-2xl border-2 border-cyan-500/30 hover:border-cyan-500/60 bg-gradient-to-br from-[#0c1527] to-[#080d19] transition-all flex flex-col justify-between shadow-lg"
-            >
-              <div>
-                <div className="flex items-center justify-between text-xs font-mono mb-2">
-                  <span className="px-2 py-0.5 rounded bg-red-500/20 text-red-300 border border-red-500/40 font-bold">
-                    {rec.historicalDemand} DEMAND
-                  </span>
-                  <span className="text-emerald-400 font-semibold flex items-center gap-1">
-                    <Clock className="w-3.5 h-3.5" />
-                    {rec.peakPeriod}
-                  </span>
-                </div>
-
-                <h3 className="font-bold text-sm text-white mb-2 leading-snug">
-                  {rec.corridor}
-                </h3>
-
-                <p className="text-xs text-slate-300 leading-relaxed font-sans mb-3">
-                  <strong>Recommendation:</strong> “{rec.recommendedPositioning}”
-                </p>
+          {recommendations.map((rec, i) => (
+            <div key={i} className="p-5 bg-white rounded-3xl border border-[#E8E8E1] shadow-subtle space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-[#EEF4EF] text-[#245C4A] border border-[#CBDACD]">
+                  {rec.recommendedUnits}
+                </span>
+                <span className="text-xs font-mono text-[#707970] flex items-center gap-1">
+                  <Clock className="w-3 h-3 text-[#929B92]" />
+                  {rec.peakWindow}
+                </span>
               </div>
 
-              <div className="pt-3 border-t border-slate-800 flex items-center justify-between text-[11px] font-mono">
-                <span className="text-slate-400">Suggested Units:</span>
-                <span className="text-cyan-400 font-bold">{rec.suggestedUnits.join(', ')}</span>
-              </div>
+              <h3 className="font-serif font-bold text-sm text-[#203B32]">
+                {rec.corridor}
+              </h3>
+
+              <p className="text-xs text-[#707970] leading-relaxed font-sans">
+                {rec.rationale}
+              </p>
             </div>
           ))}
         </div>
       </div>
 
-      {/* Visual Analytics Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      {/* Charts Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         
-        {/* Hourly Distribution Bar Chart (8 cols) */}
-        <div className="lg:col-span-8 glass-panel p-6 rounded-2xl border border-resq-border space-y-4">
-          <div className="flex items-center justify-between">
+        {/* Hourly Distribution Bar Chart */}
+        <div className="lg:col-span-8 bg-white rounded-3xl border border-[#E8E8E1] p-5 shadow-subtle space-y-4">
+          <div className="flex items-center justify-between pb-3 border-b border-[#E8E8E1]">
             <div>
-              <h3 className="text-sm font-mono font-bold text-white uppercase tracking-wider">
-                ACCIDENT FREQUENCY BY TIME OF DAY (HISTORICAL BENGALURU DATA)
+              <h3 className="font-serif text-base font-bold text-[#203B32]">
+                Hourly Incident Distribution
               </h3>
-              <p className="text-xs text-slate-400 mt-0.5">
-                Clear surge during evening peak commute (6 PM – 9 PM)
+              <p className="text-[11px] text-[#707970] font-sans">
+                Severe vs total incidents across peak operating windows
               </p>
             </div>
-            <span className="text-[10px] font-mono text-cyan-400">Peak: 19:00</span>
+            <span className="text-xs font-sans text-[#245C4A] font-semibold bg-[#EEF4EF] px-2.5 py-1 rounded-lg border border-[#CBDACD]">
+              Peak: 18:00 - 20:00
+            </span>
           </div>
 
-          <div className="h-64 w-full">
+          <div className="h-64 sm:h-72 w-full pt-2">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={hourlyDistribution} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <XAxis dataKey="hourLabel" stroke="#64748b" fontSize={11} tickLine={false} />
-                <YAxis stroke="#64748b" fontSize={11} tickLine={false} />
+                <XAxis dataKey="hourLabel" stroke="#929B92" fontSize={11} tickLine={false} />
+                <YAxis stroke="#929B92" fontSize={11} tickLine={false} />
                 <Tooltip
-                  contentStyle={{ backgroundColor: '#090e1a', borderColor: '#1e2c4a', borderRadius: '8px', fontSize: '12px' }}
-                  itemStyle={{ color: '#06b6d4' }}
+                  contentStyle={{
+                    backgroundColor: '#FFFFFF',
+                    border: '1px solid #E8E8E1',
+                    borderRadius: '12px',
+                    color: '#203B32',
+                    fontSize: '11px'
+                  }}
                 />
-                <Bar dataKey="incidentCount" fill="#06b6d4" radius={[4, 4, 0, 0]} name="Total Incidents" />
-                <Bar dataKey="severeCount" fill="#ef4444" radius={[4, 4, 0, 0]} name="Critical/High Severity" />
+                <Bar dataKey="incidentCount" name="Total Incidents" fill="#CBDACD" radius={[6, 6, 0, 0]} />
+                <Bar dataKey="severeCount" name="Severe / Critical" fill="#245C4A" radius={[6, 6, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
-
-          <div className="flex items-center justify-center gap-6 text-xs font-mono text-slate-400 pt-2 border-t border-slate-800">
-            <div className="flex items-center gap-2">
-              <span className="w-3 h-3 bg-cyan-400 rounded-sm" />
-              <span>Total Accidents</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="w-3 h-3 bg-red-500 rounded-sm" />
-              <span>Critical / Severe Casualties</span>
-            </div>
-          </div>
         </div>
 
-        {/* Severity Breakdown Donut Chart (4 cols) */}
-        <div className="lg:col-span-4 glass-panel p-6 rounded-2xl border border-resq-border space-y-4">
-          <div>
-            <h3 className="text-sm font-mono font-bold text-white uppercase tracking-wider">
-              SEVERITY COMPOSITION
+        {/* Severity Donut Chart */}
+        <div className="lg:col-span-4 bg-white rounded-3xl border border-[#E8E8E1] p-5 shadow-subtle space-y-4">
+          <div className="pb-3 border-b border-[#E8E8E1]">
+            <h3 className="font-serif text-base font-bold text-[#203B32]">
+              Severity Breakdown
             </h3>
-            <p className="text-xs text-slate-400 mt-0.5">
-              55 simulated historical corridor collisions
+            <p className="text-[11px] text-[#707970] font-sans">
+              Proportion of critical vs moderate corridor calls
             </p>
           </div>
 
-          <div className="h-52 w-full flex items-center justify-center">
+          <div className="h-48 w-full flex items-center justify-center">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
@@ -237,27 +216,37 @@ export default function EmergencyReadiness() {
                   nameKey="severity"
                   cx="50%"
                   cy="50%"
-                  innerRadius={50}
+                  innerRadius={45}
                   outerRadius={75}
                   paddingAngle={4}
                 >
-                  {severityDistribution.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={SEVERITY_COLORS[entry.severity] || '#64748b'} />
+                  {severityDistribution.map((entry, idx) => (
+                    <Cell key={idx} fill={SEVERITY_COLORS[entry.severity] || '#245C4A'} />
                   ))}
                 </Pie>
                 <Tooltip
-                  contentStyle={{ backgroundColor: '#090e1a', borderColor: '#1e2c4a', borderRadius: '8px', fontSize: '12px' }}
+                  contentStyle={{
+                    backgroundColor: '#FFFFFF',
+                    border: '1px solid #E8E8E1',
+                    borderRadius: '12px',
+                    color: '#203B32',
+                    fontSize: '11px'
+                  }}
                 />
               </PieChart>
             </ResponsiveContainer>
           </div>
 
-          <div className="grid grid-cols-2 gap-2 text-xs font-mono">
-            {severityDistribution.map(s => (
-              <div key={s.severity} className="flex items-center gap-2 p-1.5 rounded bg-slate-900 border border-slate-800">
-                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: SEVERITY_COLORS[s.severity] }} />
-                <span className="text-slate-300 font-semibold">{s.severity}:</span>
-                <span className="text-white ml-auto font-bold">{s.count}</span>
+          <div className="grid grid-cols-2 gap-2 text-xs font-sans pt-2 border-t border-[#E8E8E1]">
+            {severityDistribution.map((item) => (
+              <div key={item.severity} className="flex items-center gap-1.5">
+                <span
+                  className="w-2.5 h-2.5 rounded-full shrink-0"
+                  style={{ backgroundColor: SEVERITY_COLORS[item.severity] || '#245C4A' }}
+                />
+                <span className="text-[#707970] text-[11px] truncate">
+                  {item.severity}: <strong className="text-[#203B32]">{item.count}</strong>
+                </span>
               </div>
             ))}
           </div>
@@ -265,62 +254,49 @@ export default function EmergencyReadiness() {
 
       </div>
 
-      {/* Historical Hotspot Corridors Table */}
-      <div className="glass-panel p-6 rounded-2xl border border-resq-border">
-        <div className="flex items-center justify-between mb-4">
-          <span className="text-xs font-mono font-bold uppercase tracking-wider text-slate-300">
-            HIGH-DEMAND ACCIDENT CORRIDORS (HISTORICAL OPERATIONAL DATA)
-          </span>
-          <span className="text-[11px] font-mono text-slate-500">Sorted by historical collision frequency</span>
+      {/* Hotspots Roster Table */}
+      <div className="bg-white rounded-3xl border border-[#E8E8E1] p-5 shadow-subtle space-y-3">
+        <div className="pb-2 border-b border-[#E8E8E1]">
+          <h3 className="font-serif text-base font-bold text-[#203B32]">
+            High-Risk Corridor Hotspots
+          </h3>
+          <p className="text-[11px] text-[#707970] font-sans">
+            Ranked by total historical collisions and high-severity casualty frequency
+          </p>
         </div>
 
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs font-sans">
             <thead>
-              <tr className="border-b border-resq-border text-slate-400 font-mono text-[11px] uppercase">
-                <th className="pb-3 font-semibold">Arterial Corridor</th>
+              <tr className="border-b border-[#E8E8E1] text-[#707970] text-[11px] uppercase tracking-wider">
+                <th className="pb-3 font-semibold pl-2">Hotspot Corridor</th>
                 <th className="pb-3 font-semibold">Total Collisions</th>
-                <th className="pb-3 font-semibold">Critical / High</th>
-                <th className="pb-3 font-semibold">Avg. Transit Time</th>
-                <th className="pb-3 font-semibold">Composite Risk Index</th>
+                <th className="pb-3 font-semibold">High Severity</th>
+                <th className="pb-3 font-semibold pr-2">Primary Contributing Factor</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-resq-border/40">
-              {hotspots.map((h, i) => (
-                <tr key={i} className="hover:bg-slate-800/40 transition-colors">
-                  <td className="py-3 font-bold text-white font-sans flex items-center gap-2">
-                    <MapPin className="w-3.5 h-3.5 text-resq-accent shrink-0" />
-                    <span>{h.corridor}</span>
+            <tbody className="divide-y divide-[#E8E8E1]">
+              {hotspots.map((spot) => (
+                <tr key={spot.id} className="hover:bg-[#F8F7F2] transition-colors">
+                  <td className="py-3 pl-2 font-medium text-[#203B32]">
+                    <div className="flex items-center gap-1.5">
+                      <MapPin className="w-3.5 h-3.5 text-[#245C4A] shrink-0" />
+                      <span>{spot.name}</span>
+                    </div>
                   </td>
-                  <td className="py-3 font-mono font-bold text-cyan-400">
-                    {h.totalAccidents} accidents
+                  <td className="py-3 font-mono font-bold text-[#203B32]">
+                    {spot.incident_count}
                   </td>
-                  <td className="py-3 font-mono text-red-400 font-semibold">
-                    {h.criticalCount}
+                  <td className="py-3 font-mono font-bold text-[#E66B55]">
+                    {spot.high_priority_count}
                   </td>
-                  <td className="py-3 font-mono text-slate-300">
-                    {h.avgResponseTime} min
-                  </td>
-                  <td className="py-3 font-mono">
-                    <span className="px-2 py-0.5 rounded bg-red-950/60 border border-red-800 text-red-300 font-bold">
-                      {h.avgRiskIndex} / 1.00
-                    </span>
+                  <td className="py-3 text-[#707970] pr-2">
+                    {spot.primary_factor}
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
-        </div>
-      </div>
-
-      {/* Operational Disclosure */}
-      <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800 text-xs text-slate-400 flex items-start gap-2.5">
-        <Info className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" />
-        <div>
-          <span className="font-semibold text-slate-300 font-mono">OPERATIONAL DATASET DISCLOSURE:</span>
-          <p className="mt-0.5 leading-relaxed">
-            All historical collision numbers and corridor risk indexes presented on this page are derived from reference operational datasets for decision support demonstration purposes.
-          </p>
         </div>
       </div>
 
